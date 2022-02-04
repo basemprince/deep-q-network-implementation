@@ -8,6 +8,7 @@ import time
 from collections import deque # for FIFO
 from tensorflow.python.ops.numpy_ops import np_config
 from tensorflow.keras.utils import to_categorical
+import matplotlib.pyplot as plt
 np_config.enable_numpy_behavior()
  
 
@@ -16,19 +17,16 @@ np_config.enable_numpy_behavior()
 # =============================================================================
 JOINT_COUNT                     = 1
 QVALUE_LEARNING_RATE            = 0.001
-NEPISODES                       = 5000  # Number of training episodes
-NPRINT                          = 500   # print something every NPRINT episodes
-MAX_EPISODE_LENGTH              = 100   # Max episode length
-LEARNING_RATE                   = 0.8   # alpha coefficient of Q learning algorithm
+NEPISODES                       = 1000  # Number of training episodes
+MAX_EPISODE_LENGTH              = 200   # Max episode length
 DISCOUNT                        = 0.9   # Discount factor 
-PLOT                            = True  # Plot stuff if True
 exploration_prob                = 1     # initial exploration probability of eps-greedy policy
-exploration_decreasing_decay    = 0.001 # exploration decay for exponential decreasing
+exploration_decreasing_decay    = 0.005 # exploration decay for exponential decreasing
 min_exploration_prob            = 0.001 # minimum of exploration proba
 SAMPLE_FREQ                     = 4
-BUFFER_SIZE                     = 1000  # FIFO BUFFER SIZE for replay buffer
-SAMPLE_SIZE                     = 32     # sample size from the buffer
-UPDATE_WEIGHTS_FREQ             = 50    # number of steps before updating the Q-target weights
+BUFFER_SIZE                     = 5000   # FIFO BUFFER SIZE for replay buffer
+SAMPLE_SIZE                     = 70     # sample size from the buffer
+UPDATE_WEIGHTS_FREQ             = 60    # number of steps before updating the Q-target weights
     
 # =============================================================================
 # Environment
@@ -64,18 +62,14 @@ def update(mini_batch):
     ''' Update the weights of the Q network using the specified batch of data '''
     # all inputs are tf tensors
     xu_batch ,cost_batch ,xu_next_batch = zip(*mini_batch)
-#    x_batch = np.asarray(x_batch).squeeze()
-#    u_batch = np.asarray(u_batch)    
-#    u_batch_i = np.eye(nu)[u_batch]
-#    u_batch_i = to_categorical(u_batch,num_classes=nu)
-#    xu_batch = np.concatenate((x_batch,u_batch_i),axis=1)
+    xu_batch = np.asarray(xu_batch).squeeze()
+    xu_next_batch = np.asarray(xu_next_batch).squeeze()
     
     with tf.GradientTape() as tape:         
         # Operations are recorded if they are executed within this context manager and at least one of their inputs is being "watched".
         # Trainable variables (created by tf.Variable or tf.compat.v1.get_variable, where trainable=True is default in both cases) are automatically watched. 
         # Tensors can be manually watched by invoking the watch method on this context manager.
-        target_values = Q_target(xu_batch, training=True)
-        print("target_value" , target_values)
+        target_values = Q_target(xu_next_batch, training=True)
         # Compute 1-step targets for the critic loss
         y = cost_batch + DISCOUNT*target_values                            
         # Compute batch of Values associated to the sampled batch of states
@@ -108,13 +102,14 @@ if __name__=='__main__':
     critic_optimizer = tf.keras.optimizers.Adam(QVALUE_LEARNING_RATE)
         
     h_ctg = [] # Learning history (for plot).
+    ctg_best = np.inf
     current_step = 0
     replay_buffer = deque(maxlen=BUFFER_SIZE)
     # to transform u to a one hot encode
     u_categorized = to_categorical(list(range(0, nu)))
+    t = time.time()
     for episode in range(NEPISODES):
         x = env.reset()
-#       x = x.squeeze()
         ctg = 0.0
         gamma_i = 1
         for step in range(MAX_EPISODE_LENGTH):
@@ -123,9 +118,8 @@ if __name__=='__main__':
             else:
                 x_repeat  = np.repeat([x], nu, axis=0)
                 xu_check = np.concatenate((x_repeat,u_categorized),axis=1)
-                u = Q.predict(xu_check)
-                u_enc = u_categorized[u]
-#                print(u)
+                u_array = Q.predict(xu_check)
+                u = np.argmin(u_array)
             u_enc = u_categorized[u].reshape(1,-1)
             x_enc = x.reshape(1,-1)
             xu = np.concatenate((x_enc,u_enc),axis=1)            
@@ -141,14 +135,26 @@ if __name__=='__main__':
             ctg += gamma_i*cost
             gamma_i *= DISCOUNT
             # update the Q-target weights less often
-            if (current_step%UPDATE_WEIGHTS_FREQ==0):
+            if (current_step % UPDATE_WEIGHTS_FREQ==0):
                 Q_target.set_weights(Q.get_weights())
+            current_step+=1
             
         exploration_prob = max(min_exploration_prob, np.exp(-exploration_decreasing_decay*episode))
         h_ctg.append(ctg)
+        
+        # if the current ctg is better than the best, save it
+        if ctg < ctg_best:
+            ## Save NN weights to file (in HDF5)
+            Q.save_weights("Q_weights.h5")
+            ctg_best = ctg
+        
+        dt = time.time() - t
+        t = time.time()
+        print('episode #%d , buffer size: %d, cost %.1f , epsilon: %.1f, elapsed time %.1f s' % (episode,len(replay_buffer), ctg, 100*exploration_prob, dt))
 
-## Save NN weights to file (in HDF5)
-#Q.save_weights("/namefile.h5")
-#
-## Load NN weights from file
-#Q.load_weights("namefile.h5")
+    plt.plot( np.cumsum(h_ctg)/range(1,NEPISODES+1) )
+    plt.title ("Average cost-to-go")
+    plt.show()
+
+    ## Load NN weights from file
+    #Q.load_weights("namefile.h5")
