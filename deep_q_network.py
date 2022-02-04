@@ -15,23 +15,24 @@ np_config.enable_numpy_behavior()
 # =============================================================================
 # hyper pramters
 # =============================================================================
-JOINT_COUNT                     = 1
+TRAIN                           = True
 QVALUE_LEARNING_RATE            = 0.001
-NEPISODES                       = 1000  # Number of training episodes
-MAX_EPISODE_LENGTH              = 200   # Max episode length
-DISCOUNT                        = 0.9   # Discount factor 
-exploration_prob                = 1     # initial exploration probability of eps-greedy policy
-exploration_decreasing_decay    = 0.005 # exploration decay for exponential decreasing
-min_exploration_prob            = 0.001 # minimum of exploration proba
+NEPISODES                       = 1000   # Number of training episodes
+MAX_EPISODE_LENGTH              = 200    # Max episode length
+DISCOUNT                        = 0.9    # Discount factor 
+EPSILON                         = 1      # initial exploration probability of eps-greedy policy
+exploration_decreasing_decay    = 0.001  # exploration decay for exponential decreasing
+min_exploration_prob            = 0.001  # minimum of exploration proba
 SAMPLE_FREQ                     = 4
-BUFFER_SIZE                     = 5000   # FIFO BUFFER SIZE for replay buffer
+BUFFER_SIZE                     = 10000   # FIFO BUFFER SIZE for replay buffer
 SAMPLE_SIZE                     = 70     # sample size from the buffer
-UPDATE_WEIGHTS_FREQ             = 60    # number of steps before updating the Q-target weights
+UPDATE_WEIGHTS_FREQ             = 60     # number of steps before updating the Q-target weights
     
 # =============================================================================
 # Environment
 # =============================================================================
-nu=11   # number of discretization steps for the joint torque u
+NU                              = 11     # number of discretization steps for the joint torque u
+JOINT_COUNT                     = 1      # number of robot joints
 
 
 def np2tf(y):
@@ -44,9 +45,9 @@ def tf2np(y):
     return tf.squeeze(y).numpy()
 
 
-def get_critic(nx, nu):
+def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
-    inputs = layers.Input(shape=(nx+nu))
+    inputs = layers.Input(shape=(nx+NU))
     print(inputs)
     print(inputs.shape)
     state_out1 = layers.Dense(16, activation="relu")(inputs) 
@@ -81,32 +82,14 @@ def update(mini_batch):
     # Update the critic backpropagating the gradients
     critic_optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))    
 
-
-if __name__=='__main__':
-    ### --- Random seed
-    RANDOM_SEED = int((time.time()%10)*1000)
-    print("Seed = %d" % RANDOM_SEED)
-    np.random.seed(RANDOM_SEED)
-    
-    # Create critic and target NNs
-    env = hybrid_pendulum(JOINT_COUNT, nu, dt=0.1)
-    nx = env.nx
-#    print(nx)
-    Q = get_critic(nx, nu)
-    # a separate nn to calculate the target
-    Q_target = get_critic(nx, nu)
-    Q.summary()
-    # Set initial weights of targets equal to those of actor and critic
-    Q_target.set_weights(Q.get_weights())
-    ## Set optimizer specifying the learning rates
-    critic_optimizer = tf.keras.optimizers.Adam(QVALUE_LEARNING_RATE)
+def trigger_training():
         
     h_ctg = [] # Learning history (for plot).
     ctg_best = np.inf
     current_step = 0
     replay_buffer = deque(maxlen=BUFFER_SIZE)
     # to transform u to a one hot encode
-    u_categorized = to_categorical(list(range(0, nu)))
+    exploration_prob = EPSILON
     t = time.time()
     for episode in range(NEPISODES):
         x = env.reset()
@@ -116,7 +99,7 @@ if __name__=='__main__':
             if uniform(0,1) < exploration_prob:
                 u = randint(env.nu)
             else:
-                x_repeat  = np.repeat([x], nu, axis=0)
+                x_repeat  = np.repeat([x], NU, axis=0)
                 xu_check = np.concatenate((x_repeat,u_categorized),axis=1)
                 u_array = Q.predict(xu_check)
                 u = np.argmin(u_array)
@@ -141,6 +124,9 @@ if __name__=='__main__':
             
         exploration_prob = max(min_exploration_prob, np.exp(-exploration_decreasing_decay*episode))
         h_ctg.append(ctg)
+        plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
+        plt.title ("Average cost-to-go")
+        plt.show()
         
         # if the current ctg is better than the best, save it
         if ctg < ctg_best:
@@ -155,6 +141,45 @@ if __name__=='__main__':
     plt.plot( np.cumsum(h_ctg)/range(1,NEPISODES+1) )
     plt.title ("Average cost-to-go")
     plt.show()
-
+    
+def simulate():
     ## Load NN weights from file
-    #Q.load_weights("namefile.h5")
+    Q.load_weights("Q_weights.h5")
+    x= env.reset()
+    ctg = 0.0
+    gamma_i = 1
+    
+    for i in range(200):      
+        x_repeat  = np.repeat([x], NU, axis=0)
+        xu_check = np.concatenate((x_repeat,u_categorized),axis=1)
+        u_array = Q.predict(xu_check)
+        u = np.argmin(u_array)
+        x, cost = env.step(u)
+        ctg += gamma_i*cost
+        gamma_i *= DISCOUNT
+        env.render() 
+        
+if __name__=='__main__':
+    ### --- Random seed
+    RANDOM_SEED = int((time.time()%10)*1000)
+    print("Seed = %d" % RANDOM_SEED)
+    np.random.seed(RANDOM_SEED)
+    # Create critic and target NNs
+    env = hybrid_pendulum(JOINT_COUNT, NU, dt=0.1)
+    nx = env.nx
+#    print(nx)
+    Q = get_critic(nx)  
+    # a separate nn to calculate the target
+    Q_target = get_critic(nx)
+    Q.summary()
+    # Set initial weights of targets equal to those of actor and critic
+    Q_target.set_weights(Q.get_weights())
+    ## Set optimizer specifying the learning rates
+    critic_optimizer = tf.keras.optimizers.Adam(QVALUE_LEARNING_RATE)
+    u_categorized = to_categorical(list(range(0, NU)))
+    
+    if(TRAIN):
+        trigger_training()
+    simulate()
+    
+

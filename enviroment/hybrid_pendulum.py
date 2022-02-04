@@ -58,9 +58,7 @@ class hybrid_pendulum:
         return self.pendulum.step(self.c2du(iu))
 
     def render(self):
-        q = self.d2cq(self.i2x(self.x)[0])
-        self.pendulum.display(np.array([q,]))
-        time.sleep(self.pendulum.DT)
+        self.pendulum.render()
 
 
     def plot_V_table(self, V):
