@@ -126,13 +126,13 @@ class Pendulum:
         assert len(x0)==self.nx
         self.x = x0.copy()
         self.r = 0.0
-        return self.obs(self.x)
+        return self.obs(self.x).squeeze()
 
     def step(self, u):
         ''' Simulate one time step '''
 #        assert(len(u)==self.nu)
         _,self.r = self.dynamics(self.x, u)
-        return self.obs(self.x), self.r
+        return self.obs(self.x).squeeze(), self.r
 
     def obs(self, x):
         ''' Compute the observation of the state '''
