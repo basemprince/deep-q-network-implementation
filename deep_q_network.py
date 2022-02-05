@@ -15,18 +15,19 @@ np_config.enable_numpy_behavior()
 # =============================================================================
 # hyper pramters
 # =============================================================================
-TRAIN                           = True
+TRAIN                           = False
 QVALUE_LEARNING_RATE            = 0.001
-NEPISODES                       = 1000   # Number of training episodes
+NEPISODES                       = 4000   # Number of training episodes
 MAX_EPISODE_LENGTH              = 200    # Max episode length
 DISCOUNT                        = 0.9    # Discount factor 
 EPSILON                         = 1      # initial exploration probability of eps-greedy policy
 exploration_decreasing_decay    = 0.001  # exploration decay for exponential decreasing
 min_exploration_prob            = 0.001  # minimum of exploration proba
 SAMPLE_FREQ                     = 4
-BUFFER_SIZE                     = 10000   # FIFO BUFFER SIZE for replay buffer
+BUFFER_SIZE                     = 50000   # FIFO BUFFER SIZE for replay buffer
+BUFFER_LOW                      = 6000
 SAMPLE_SIZE                     = 70     # sample size from the buffer
-UPDATE_WEIGHTS_FREQ             = 60     # number of steps before updating the Q-target weights
+UPDATE_WEIGHTS_FREQ             = 100     # number of steps before updating the Q-target weights
     
 # =============================================================================
 # Environment
@@ -62,17 +63,26 @@ def get_critic(nx):
 def update(mini_batch):
     ''' Update the weights of the Q network using the specified batch of data '''
     # all inputs are tf tensors
-    xu_batch ,cost_batch ,xu_next_batch = zip(*mini_batch)
+    xu_batch ,cost_batch ,xu_next_batch , done_batch = zip(*mini_batch)
     xu_batch = np.asarray(xu_batch).squeeze()
     xu_next_batch = np.asarray(xu_next_batch).squeeze()
-    
+    n = len(mini_batch)
     with tf.GradientTape() as tape:         
         # Operations are recorded if they are executed within this context manager and at least one of their inputs is being "watched".
         # Trainable variables (created by tf.Variable or tf.compat.v1.get_variable, where trainable=True is default in both cases) are automatically watched. 
         # Tensors can be manually watched by invoking the watch method on this context manager.
-        target_values = Q_target(xu_next_batch, training=True)
+#        target_values = Q_target(xu_next_batch, training=True)
         # Compute 1-step targets for the critic loss
-        y = cost_batch + DISCOUNT*target_values                            
+        target_output = Q_target(xu_next_batch, training=True).reshape((n,-1,JOINT_COUNT))
+        target_value  = tf.math.reduce_sum(np.min(target_output, axis=1), axis=1)         
+        y = np.zeros(n)
+        for id, done in enumerate(done_batch):
+            if done:
+                y[id] = cost_batch[id]
+            else:
+                y[id] = cost_batch[id] + DISCOUNT*target_value[id]      
+                    
+#        y = cost_batch + DISCOUNT*target_values                            
         # Compute batch of Values associated to the sampled batch of states
         Q_value = Q(xu_batch, training=True)                         
         # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
@@ -109,9 +119,9 @@ def trigger_training():
             x_next, cost = env.step(u)
             x_next_enc = x_next.reshape(1,-1)
             xu_next = np.concatenate((x_next_enc,u_enc),axis=1)  
-            
-            replay_buffer.append([xu, cost, xu_next])
-            if len(replay_buffer) > SAMPLE_SIZE and current_step%SAMPLE_FREQ == 0:
+            done = True if step == MAX_EPISODE_LENGTH - 1 else False
+            replay_buffer.append([xu, cost, xu_next,done])
+            if len(replay_buffer) > BUFFER_LOW and current_step%SAMPLE_FREQ == 0:
                 mini_batch = sample(replay_buffer,SAMPLE_SIZE) 
                 update(mini_batch)
             x = x_next
@@ -129,7 +139,7 @@ def trigger_training():
         plt.show()
         
         # if the current ctg is better than the best, save it
-        if ctg < ctg_best:
+        if ctg <= ctg_best:
             ## Save NN weights to file (in HDF5)
             Q.save_weights("Q_weights.h5")
             ctg_best = ctg
