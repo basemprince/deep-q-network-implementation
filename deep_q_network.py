@@ -15,7 +15,8 @@ np_config.enable_numpy_behavior()
 # =============================================================================
 # hyper pramters
 # =============================================================================
-TRAIN                           = False
+TRAIN                           = True
+PLOT                            = True
 QVALUE_LEARNING_RATE            = 0.001
 NEPISODES                       = 4000   # Number of training episodes
 MAX_EPISODE_LENGTH              = 200    # Max episode length
@@ -48,7 +49,7 @@ def tf2np(y):
 
 def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
-    inputs = layers.Input(shape=(nx+NU))
+    inputs = layers.Input(shape=(nx+NU,1))
     print(inputs)
     print(inputs.shape)
     state_out1 = layers.Dense(16, activation="relu")(inputs) 
@@ -84,9 +85,13 @@ def update(mini_batch):
                     
 #        y = cost_batch + DISCOUNT*target_values                            
         # Compute batch of Values associated to the sampled batch of states
-        Q_value = Q(xu_batch, training=True)                         
+        Q_value = Q(xu_batch, training=True)    
+#        print(tf.shape(Q_value.shape))      
+        q_value_np = tf2np(Q_value)  
+#        print("q_value", q_value_np.shape)
         # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
-        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value))  
+        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value)) 
+#        print("q_loss" , Q_loss)
     # Compute the gradients of the critic loss w.r.t. critic's parameters (weights and biases)
     Q_grad = tape.gradient(Q_loss, Q.trainable_variables)          
     # Update the critic backpropagating the gradients
@@ -107,7 +112,7 @@ def trigger_training():
         gamma_i = 1
         for step in range(MAX_EPISODE_LENGTH):
             if uniform(0,1) < exploration_prob:
-                u = randint(env.nu)
+                u = randint(env.nu,size = JOINT_COUNT)
             else:
                 x_repeat  = np.repeat([x], NU, axis=0)
                 xu_check = np.concatenate((x_repeat,u_categorized),axis=1)
@@ -121,7 +126,7 @@ def trigger_training():
             xu_next = np.concatenate((x_next_enc,u_enc),axis=1)  
             done = True if step == MAX_EPISODE_LENGTH - 1 else False
             replay_buffer.append([xu, cost, xu_next,done])
-            if len(replay_buffer) > BUFFER_LOW and current_step%SAMPLE_FREQ == 0:
+            if len(replay_buffer) >= BUFFER_LOW and current_step%SAMPLE_FREQ == 0:
                 mini_batch = sample(replay_buffer,SAMPLE_SIZE) 
                 update(mini_batch)
             x = x_next
@@ -134,9 +139,10 @@ def trigger_training():
             
         exploration_prob = max(min_exploration_prob, np.exp(-exploration_decreasing_decay*episode))
         h_ctg.append(ctg)
-        plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-        plt.title ("Average cost-to-go")
-        plt.show()
+        if(PLOT):
+            plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
+            plt.title ("Average cost-to-go")
+            plt.show()
         
         # if the current ctg is better than the best, save it
         if ctg <= ctg_best:
@@ -148,9 +154,10 @@ def trigger_training():
         t = time.time()
         print('episode #%d , buffer size: %d, cost %.1f , epsilon: %.1f, elapsed time %.1f s' % (episode,len(replay_buffer), ctg, 100*exploration_prob, dt))
 
-    plt.plot( np.cumsum(h_ctg)/range(1,NEPISODES+1) )
-    plt.title ("Average cost-to-go")
-    plt.show()
+    if(PLOT):
+        plt.plot( np.cumsum(h_ctg)/range(1,NEPISODES+1) )
+        plt.title ("Average cost-to-go")
+        plt.show()
     
 def simulate():
     ## Load NN weights from file
