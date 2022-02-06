@@ -5,7 +5,7 @@ Created on Sat Feb  5 22:35:39 2022
 
 @author: parallels
 """
-
+import sys
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
@@ -18,7 +18,7 @@ from random import sample
 
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
-
+np.set_printoptions(threshold=sys.maxsize)
 ### --- Hyper paramaters
 SAMPLING_STEPS         = 4             # Steps to sample from replay buffer
 BATCH_SIZE             = 64            # Batch size sampled from replay buffer
@@ -37,7 +37,7 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
-THRESHOLD              = 0.0001
+THRESHOLD              = 0.1
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -62,41 +62,9 @@ def get_critic(nx,nu):
 
     return model
 
-def update(batch):
-    ''' Update the weights of the Q network using the specified batch of data '''
-    x_batch      = np.array([sample[0] for sample in batch])
-    u_batch      = np.array([sample[1] for sample in batch])
-    cost_batch   = np.array([sample[2] for sample in batch])
-    x_next_batch = np.array([sample[3] for sample in batch])
-    done_batch   = np.array([sample[4] for sample in batch])
-    
-    n = len(batch)
-    
-    with tf.GradientTape() as tape:
-        # Compute Q target
-        target_output = Q_target(x_next_batch, training=True).reshape((n,-1,nbJoint))
-        target_value  = tf.math.reduce_sum(np.min(target_output, axis=1), axis=1)
-        tf.math.increase_sum
-        # Compute 1-step targets for the critic loss
-        y = np.zeros(n)
-        for id, done in enumerate(done_batch):
-            if done:
-                y[id] = cost_batch[id]
-            else:
-                y[id] = cost_batch[id] + GAMMA*target_value[id]      
-        
-        # Compute Q
-        Q_output = Q(x_batch, training=True).reshape((n,-1,nbJoint))
-        d1 = np.repeat(np.arange(n),nbJoint).reshape(n,-1)
-        d2 = u_batch.reshape(n,-1)
-        d3 = np.repeat(np.arange(nbJoint).reshape(1,-1),n,axis=0)
-        Q_value  = tf.math.reduce_sum(Q_output[d1, d2, d3], axis=1)
-        
-        # Compute Q loss
-        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value))
-    
-    Q_grad = tape.gradient(Q_loss, Q.trainable_variables)
-    optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))
+#def update(batch):
+#    ''' Update the weights of the Q network using the specified batch of data '''
+
 
 def simulate():
     ## Load NN weights from file
@@ -106,10 +74,11 @@ def simulate():
     gamma_i = 1
     
     for i in range(200):      
-        x_rep = np.repeat([x],nu,axis=0)
+        x_rep = np.repeat(x.reshape(1,-1),nu**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
         pred = Q.predict(xu_check)
-        u = np.argmin(pred, axis=0)
+        u_ind = np.argmin(pred.sum(axis=1), axis=0)
+        u = u_list[u_ind]
         x, cost = env.step(u)
         ctg += gamma_i*cost
         gamma_i *= GAMMA
@@ -137,10 +106,22 @@ if __name__=='__main__':
     
     steps = 0
     epsilon = EPSILON
+    threshold = THRESHOLD
     t_start = t = time.time()
-    u_list = np.array(range(0, nu))
-    u_list = np.transpose([u_list] * JOINT_COUNT)    
-    
+
+    # creating a matrix for controls based on JOINT_COUNT
+    u_list1 = np.array(range(0, nu))
+    u_list2 = np.repeat(u_list1,nu**(JOINT_COUNT-1))
+    u_list = u_list2
+    for i in range(JOINT_COUNT-1):
+        print(i)
+        if(i==JOINT_COUNT-2):
+            u_list3 = np.tile(u_list1,nu**(JOINT_COUNT-1))            
+        else:
+            u_list3 = np.repeat(u_list1,nu**(JOINT_COUNT-2-i))
+            u_list3 = np.tile(u_list3,nu**(i+1))        
+        u_list = np.c_[u_list,u_list3]
+        
     if(not TRAIN):
         simulate()
     else:
@@ -154,15 +135,19 @@ if __name__=='__main__':
                 if uniform(0,1) < epsilon:
                     u = randint(nu, size=JOINT_COUNT)
                 else:
-                    x_rep = np.repeat([x],nu,axis=0)
+                    x_rep = np.repeat(x.reshape(1,-1),nu**(JOINT_COUNT),axis=0)
                     xu_check = np.c_[x_rep,u_list]
                     pred = Q.predict(xu_check)
-                    u = np.argmin(pred, axis=0)
+                    u_ind = np.argmin(pred.sum(axis=1), axis=0)
+                    u = u_list[u_ind]
                 x_next, cost = env.step(u)
-                reached = True if cost <=THRESHOLD else False
-#                env.render() 
-                xu = np.c_[x.reshape(1,-1),u]
-                xu_next = np.c_[[x_next],u]
+                if(cost <= threshold):
+                    env.render()
+                    print(cost)
+                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
+                reached = True if cost <=threshold else False
+                xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
+                xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
                 replay_buffer.append([xu, cost, xu_next,reached])
                 
                 if steps % UPDATE_Q_TARGET_STEPS == 0:
@@ -176,21 +161,22 @@ if __name__=='__main__':
                     with tf.GradientTape() as tape:
                         # Compute Q target
                         target_values = Q_target(xu_next_batch, training=True)
+                        target_values_per_input = tf.math.reduce_sum(target_values,axis=1)
                         # Compute 1-step targets for the critic loss
                         y = np.zeros(BATCH_SIZE)
                         for ind, reached_ in enumerate(reached_batch):
                             if reached_:
                                 y[ind] = cost_batch1[ind]
                             else:
-                                y[ind] = cost_batch1[ind] + GAMMA*target_values[ind]    
-                        y = np2tf(y)
-                        print(y)
+                                y[ind] = cost_batch1[ind] + GAMMA*target_values_per_input[ind]    
+#                        print(y)
 #                        y = cost_batch1 + GAMMA*target_values                            
                         # Compute batch of Values associated to the sampled batch of states
                         # Compute batch of Values associated to the sampled batch of states
                         Q_value = Q(xu_batch, training=True) 
+                        Q_value_per_input = tf.math.reduce_sum(Q_value,axis=1)
                         # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
-                        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value)) 
+                        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value_per_input)) 
                     Q_grad = tape.gradient(Q_loss, Q.trainable_variables)
                     optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))
                                 
@@ -199,7 +185,7 @@ if __name__=='__main__':
                 gamma_i *= GAMMA
                 steps += 1
     
-                if cost_to_go < best_ctg and episode > 0.1*NEPISODES:
+                if cost_to_go < best_ctg and episode > 0.05*NEPISODES:
                     Q.save_weights("Q_weights.h5")
                     best_ctg = cost_to_go
             
@@ -216,8 +202,8 @@ if __name__=='__main__':
                 dt = time.time() - t
                 t = time.time()
                 tot_t = t - t_start
-                print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , elapsed: %.1f s , tot. time: %.1f m' % (
-                      episode, np.mean(h_ctg[-nprint:]), len(replay_buffer), 100*epsilon, dt, tot_t/60.0))
+                print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.4f , elapsed: %.1f s , tot. time: %.1f m' % (
+                      episode, np.mean(h_ctg[-nprint:]), len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
         
     
     
