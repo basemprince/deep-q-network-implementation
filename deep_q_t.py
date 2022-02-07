@@ -37,7 +37,7 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
-THRESHOLD              = 0.1
+THRESHOLD              = 0.001
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -125,7 +125,7 @@ if __name__=='__main__':
     if(not TRAIN):
         simulate()
     else:
-
+        count = 0
         for episode in range(NEPISODES):
             cost_to_go = 0.0
             x = env.reset()
@@ -142,9 +142,9 @@ if __name__=='__main__':
                     u = u_list[u_ind]
                 x_next, cost = env.step(u)
                 if(cost <= threshold):
-                    env.render()
+#                    env.render()
                     print(cost)
-                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
+#                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
                 reached = True if cost <=threshold else False
                 xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
                 xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
@@ -169,8 +169,7 @@ if __name__=='__main__':
                                 y[ind] = cost_batch1[ind]
                             else:
                                 y[ind] = cost_batch1[ind] + GAMMA*target_values_per_input[ind]    
-#                        print(y)
-#                        y = cost_batch1 + GAMMA*target_values                            
+                      
                         # Compute batch of Values associated to the sampled batch of states
                         # Compute batch of Values associated to the sampled batch of states
                         Q_value = Q(xu_batch, training=True) 
@@ -190,7 +189,8 @@ if __name__=='__main__':
                     best_ctg = cost_to_go
             
             if(len(replay_buffer)==MIN_BUFFER_SIZE):
-                epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*episode))
+                count +=1
+                epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count))
             h_ctg.append(cost_to_go)
             
             if(PLOT and episode % nprint == 0):
