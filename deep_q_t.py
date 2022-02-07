@@ -25,7 +25,7 @@ BATCH_SIZE             = 64            # Batch size sampled from replay buffer
 REPLAY_BUFFER_SIZE     = 20000         # Size of replay buffer
 MIN_BUFFER_SIZE        = 20000         # Minimum buffer size to start training
 UPDATE_Q_TARGET_STEPS  = 100           # Steps to update Q target
-NEPISODES              = 3000          # Number of training episodes
+NEPISODES              = 5000          # Number of training episodes
 MAX_EPISODE_LENGTH     = 200           # Max episode length
 QVALUE_LEARNING_RATE   = 0.001         # Learning rate of DQN
 GAMMA                  = 0.9           # Discount factor 
@@ -37,7 +37,8 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
-THRESHOLD              = 0.001
+THRESHOLD              = 0.0001
+CONTINUE_TRAIN         = True
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -184,7 +185,7 @@ if __name__=='__main__':
                 gamma_i *= GAMMA
                 steps += 1
     
-                if cost_to_go < best_ctg and episode > 0.05*NEPISODES:
+                if cost_to_go <= best_ctg and episode > 0.05*NEPISODES:
                     Q.save_weights("Q_weights.h5")
                     best_ctg = cost_to_go
             
