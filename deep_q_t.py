@@ -35,7 +35,11 @@ GAMMA                  = 0.9           # Discount factor
 EPSILON                = 1             # Initial exploration probability of eps-greedy policy
 EPSILON_DECAY          = 0.001         # Exploration decay for exponential decreasing
 MIN_EPSILON            = 0.001         # Minimum of exploration probability
+<<<<<<< HEAD
 SAVE_MODEL             = 100
+=======
+SAVE_MODEL             = 500
+>>>>>>> eec8a9efacb7542de4e4cc40a0d5e8695fea04c8
 nprint                 = 10
 PLOT                   = True
 JOINT_COUNT            = 2
