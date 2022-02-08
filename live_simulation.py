@@ -66,10 +66,10 @@ def get_critic(nx,nu):
 #    ''' Update the weights of the Q network using the specified batch of data '''
 
 
-def simulate(itr=300):
+def simulate(itr=100,curr=True):
     ## Load NN weights from file
-    #Q.load_weights("Q_weights-5000.h5")
-    Q.load_weights("Q_weights_2J.h5")
+    if not curr:
+        Q.load_weights("Q_weights.h5")
     x= env.reset()
     ctg = 0.0
     gamma_i = 1
@@ -124,7 +124,7 @@ if __name__=='__main__':
         u_list = np.c_[u_list,u_list3]
         
     if(not TRAIN):
-        simulate()
+        simulate(curr=False)
     else:
         count = 0
         for episode in range(NEPISODES):

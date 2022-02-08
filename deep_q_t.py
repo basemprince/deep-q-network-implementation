@@ -27,7 +27,7 @@ BATCH_SIZE             = 64            # Batch size sampled from replay buffer
 REPLAY_BUFFER_SIZE     = 20000         # Size of replay buffer
 MIN_BUFFER_SIZE        = 5000         # Minimum buffer size to start training
 UPDATE_Q_TARGET_STEPS  = 100           # Steps to update Q target
-NEPISODES              = 7000          # Number of training episodes
+NEPISODES              = 10000          # Number of training episodes
 MAX_EPISODE_LENGTH     = 200           # Max episode length
 QVALUE_LEARNING_RATE   = 0.001         # Learning rate of DQN
 GAMMA                  = 0.9           # Discount factor 
@@ -37,7 +37,7 @@ MIN_EPSILON            = 0.001         # Minimum of exploration probability
 nprint                 = 10
 PLOT                   = True
 JOINT_COUNT            = 2
-NU                     = 10
+NU                     = 13
 TRAIN                  = True
 THRESHOLD              = 1e-6
 
@@ -130,7 +130,7 @@ if __name__=='__main__':
     else:
         count = 0
         for episode in range(NEPISODES):
-            cost_to_go = 0.0
+            ctg = 0.0
             x = env.reset()
             gamma_i = 1
             for step in range(MAX_EPISODE_LENGTH):
@@ -183,20 +183,21 @@ if __name__=='__main__':
                     optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))
                                 
                 x = x_next
-                cost_to_go += gamma_i * cost
+                ctg += gamma_i * cost
                 gamma_i *= GAMMA
                 steps += 1
     
-            if cost_to_go <= best_ctg and episode > 0.02*NEPISODES:
+            avg_ctg = np.average(h_ctg[-nprint:])
+            if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
                 simulate()
-                print("cost is: ", cost_to_go," saving weights")
+                print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
                 Q.save_weights("Q_weights.h5")
-                best_ctg = cost_to_go
+                best_ctg = avg_ctg
             
-            if(len(replay_buffer)==MIN_BUFFER_SIZE):
+            if(len(replay_buffer)>=MIN_BUFFER_SIZE):
                 count +=1
                 epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count))
-            h_ctg.append(cost_to_go)
+            h_ctg.append(ctg)
             
             if(PLOT and episode % nprint == 0):
                 plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
@@ -208,7 +209,7 @@ if __name__=='__main__':
                 t = time.time()
                 tot_t = t - t_start
                 print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.6f , elapsed: %.1f s , tot. time: %.1f m' % (
-                      episode, np.mean(h_ctg[-nprint:]), len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
+                      episode, avg_ctg, len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
         
     
     
