@@ -8,7 +8,7 @@ Created on Sat Feb  5 22:35:39 2022
 import sys
 import os
 import glob
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
@@ -26,21 +26,22 @@ np.set_printoptions(threshold=sys.maxsize)
 SAMPLING_STEPS         = 4             # Steps to sample from replay buffer
 BATCH_SIZE             = 64            # Batch size sampled from replay buffer
 REPLAY_BUFFER_SIZE     = 20000         # Size of replay buffer
-MIN_BUFFER_SIZE        = 5000         # Minimum buffer size to start training
-UPDATE_Q_TARGET_STEPS  = 100           # Steps to update Q target
-NEPISODES              = 10000          # Number of training episodes
+MIN_BUFFER_SIZE        = 5000          # Minimum buffer size to start training
+UPDATE_Q_TARGET        = 100           # Steps to update Q target
+NEPISODES              = 10000         # Number of training episodes
 MAX_EPISODE_LENGTH     = 200           # Max episode length
 QVALUE_LEARNING_RATE   = 0.001         # Learning rate of DQN
 GAMMA                  = 0.9           # Discount factor 
 EPSILON                = 1             # Initial exploration probability of eps-greedy policy
 EPSILON_DECAY          = 0.001         # Exploration decay for exponential decreasing
 MIN_EPSILON            = 0.001         # Minimum of exploration probability
+SAVE_MODEL             = 100
 nprint                 = 10
 PLOT                   = True
 JOINT_COUNT            = 2
-NU                     = 13
+NU                     = 11
 TRAIN                  = True
-THRESHOLD              = 1e-3
+THRESHOLD              = 1e-2
 
 
 def np2tf(y):
@@ -68,7 +69,39 @@ def get_critic(nx):
 
 #def update(batch):
 #    ''' Update the weights of the Q network using the specified batch of data '''
+def save_model():
+    eps_num = str(episode).zfill(5)
+    name = "Q_weights_backup/Q_weights_" + eps_num + ".h5"
+    Q.save_weights(name)
+#    simulate_sp(eps_num)
+    
 
+
+def reset_env():
+    if JOINT_COUNT == 1:
+        x0  = np.array([[np.pi], [0.]])
+    elif JOINT_COUNT == 2:
+        x0  = np.array([[np.pi, 0.], [0., 0.]])
+    else:
+        x0 = None
+    return env.reset(x0) , 0.0 , 1
+    
+def simulate_sp(eps_num,itr=100):
+    directory = 'Q_weights_backup/Q_weights_'
+    file_name = directory + str(eps_num) + '.h5'
+    Q.load_weights(file_name)
+    x , ctg , gamma_i = reset_env()
+    for i in range(itr):      
+        x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
+        xu_check = np.c_[x_rep,u_list]
+        pred = Q.predict(xu_check)
+        u_ind = np.argmin(pred.sum(axis=1), axis=0)
+        u = u_list[u_ind]
+        x, cost = env.step(u)
+#        print(cost)
+        ctg += gamma_i*cost
+        gamma_i *= GAMMA
+        env.render()
 
 def simulate(itr=100,curr=True):
     ## Load NN weights from file
@@ -151,16 +184,16 @@ if __name__=='__main__':
                         u_ind = np.argmin(pred.sum(axis=1), axis=0)
                         u = u_list[u_ind]
                     x_next, cost = env.step(u)
-                    if(cost <= threshold):
-    #                    env.render()
-                        print(cost)
     #                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
-                    reached = True if cost and x[nv:] <= threshold else False
+                    reached = True if (cost and x[nv:]).all() <= threshold else False
+                    if(reached):
+    #                    env.render()
+                        print(x , cost)
                     xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
                     xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
                     replay_buffer.append([xu, cost, xu_next,reached])
                     
-                    if steps % UPDATE_Q_TARGET_STEPS == 0:
+                    if steps % UPDATE_Q_TARGET == 0:
                         Q_target.set_weights(Q.get_weights()) 
                     # Sampling from replay buffer and train
                     if len(replay_buffer) >= MIN_BUFFER_SIZE and steps % SAMPLING_STEPS == 0:
@@ -181,7 +214,6 @@ if __name__=='__main__':
                                     y[ind] = cost_batch1[ind] + GAMMA*target_values_per_input[ind]    
                           
                             # Compute batch of Values associated to the sampled batch of states
-                            # Compute batch of Values associated to the sampled batch of states
                             Q_value = Q(xu_batch, training=True) 
                             Q_value_per_input = tf.math.reduce_sum(Q_value,axis=1)
                             # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
@@ -197,10 +229,11 @@ if __name__=='__main__':
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
 #                    simulate()
                     print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
-                    name = "Q_weights_backup/Q_weights_" + str(episode.zfill(5)) + ".h5"
-                    Q.save_weights(name)
+#                    name = "Q_weights_backup/Q_weights_" + str(episode).zfill(5) + ".h5"
+#                    Q.save_weights(name)
                     best_ctg = avg_ctg
-                
+
+
                 if(len(replay_buffer)>=MIN_BUFFER_SIZE):
                     count +=1
                     epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count))
@@ -209,8 +242,11 @@ if __name__=='__main__':
                 if(PLOT and episode % nprint == 0):
                     plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
                     plt.title ("Average cost-to-go")
-                    plt.show()         
-                     
+                    plt.show()       
+                    
+                if episode % SAVE_MODEL == 0:
+                    save_model()   
+                    
                 if episode % nprint == 0:
                     dt = time.time() - t
                     t = time.time()

@@ -87,6 +87,8 @@ def simulate_sp(file_num,itr=200):
         gamma_i *= GAMMA
         env.render()
 
+def play_final():
+    simulate_sp('final',300)
 
 
 if __name__=='__main__':
