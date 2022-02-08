@@ -130,7 +130,7 @@ class Pendulum:
 
     def step(self, u):
         ''' Simulate one time step '''
-        u = u if type(u) is np.ndarray else [u]
+#        u = u if type(u) is np.ndarray else [u]
         assert(len(u)==self.nu)
         _,self.r = self.dynamics(self.x, u)
         return self.obs(self.x), self.r
@@ -185,7 +185,9 @@ class Pendulum:
         
         return x,cost
      
-    def render(self):
+    def render(self,pt=False):
         q = self.x[:self.nq]
+        if(pt):
+            print(self.x)
         self.display(q)
         time.sleep(self.DT/10)

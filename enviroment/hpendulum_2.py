@@ -16,6 +16,7 @@ class HPendulum:
         self.pendulum.NDT = ndt
         self.nu = nu        # Number of discretization steps for joint torque
         self.nx = self.pendulum.nx
+        self.nv = self.pendulum.nv
         self.uMax = uMax    # Max torque (u in [-umax,umax])
         self.DU = 2*uMax/nu # discretization resolution for joint torque
     
