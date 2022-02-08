@@ -128,92 +128,95 @@ if __name__=='__main__':
     if(not TRAIN):
         simulate()
     else:
-        count = 0
-        for episode in range(NEPISODES):
-            ctg = 0.0
-            x = env.reset()
-            gamma_i = 1
-            for step in range(MAX_EPISODE_LENGTH):
+        try:
+            count = 0
+            for episode in range(NEPISODES):
+                ctg = 0.0
+                x = env.reset()
+                gamma_i = 1
+                for step in range(MAX_EPISODE_LENGTH):
+                    
+                    if uniform(0,1) < epsilon:
+                        u = randint(nu, size=JOINT_COUNT)
+                    else:
+                        x_rep = np.repeat(x.reshape(1,-1),nu**(JOINT_COUNT),axis=0)
+                        xu_check = np.c_[x_rep,u_list]
+                        pred = Q.predict(xu_check)
+                        u_ind = np.argmin(pred.sum(axis=1), axis=0)
+                        u = u_list[u_ind]
+                    x_next, cost = env.step(u)
+                    if(cost <= threshold):
+    #                    env.render()
+                        print(cost)
+    #                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
+                    reached = True if cost <=threshold else False
+                    xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
+                    xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
+                    replay_buffer.append([xu, cost, xu_next,reached])
+                    
+                    if steps % UPDATE_Q_TARGET_STEPS == 0:
+                        Q_target.set_weights(Q.get_weights()) 
+                    # Sampling from replay buffer and train
+                    if len(replay_buffer) >= MIN_BUFFER_SIZE and steps % SAMPLING_STEPS == 0:
+                        xu_batch, cost_batch, xu_next_batch, reached_batch = zip(*sample(replay_buffer, BATCH_SIZE))
+                        xu_batch = tf.convert_to_tensor(np.asarray(xu_batch).squeeze())
+                        xu_next_batch = tf.convert_to_tensor(np.asarray(xu_next_batch).squeeze())
+                        cost_batch1 = np2tf(np.asarray(cost_batch))
+                        with tf.GradientTape() as tape:
+                            # Compute Q target
+                            target_values = Q_target(xu_next_batch, training=True)
+                            target_values_per_input = tf.math.reduce_sum(target_values,axis=1)
+                            # Compute 1-step targets for the critic loss
+                            y = np.zeros(BATCH_SIZE)
+                            for ind, reached_ in enumerate(reached_batch):
+                                if reached_:
+                                    y[ind] = cost_batch1[ind]
+                                else:
+                                    y[ind] = cost_batch1[ind] + GAMMA*target_values_per_input[ind]    
+                          
+                            # Compute batch of Values associated to the sampled batch of states
+                            # Compute batch of Values associated to the sampled batch of states
+                            Q_value = Q(xu_batch, training=True) 
+                            Q_value_per_input = tf.math.reduce_sum(Q_value,axis=1)
+                            # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
+                            Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value_per_input)) 
+                        Q_grad = tape.gradient(Q_loss, Q.trainable_variables)
+                        optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))
+                                    
+                    x = x_next
+                    ctg += gamma_i * cost
+                    gamma_i *= GAMMA
+                    steps += 1  
+                avg_ctg = np.average(h_ctg[-nprint:])
+                if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
+                    simulate()
+                    print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
+                    name = "Q_weights_backup/Q_weights_" + str(episode) + ".h5"
+                    Q.save_weights(name)
+                    best_ctg = avg_ctg
                 
-                if uniform(0,1) < epsilon:
-                    u = randint(nu, size=JOINT_COUNT)
-                else:
-                    x_rep = np.repeat(x.reshape(1,-1),nu**(JOINT_COUNT),axis=0)
-                    xu_check = np.c_[x_rep,u_list]
-                    pred = Q.predict(xu_check)
-                    u_ind = np.argmin(pred.sum(axis=1), axis=0)
-                    u = u_list[u_ind]
-                x_next, cost = env.step(u)
-                if(cost <= threshold):
-#                    env.render()
-                    print(cost)
-#                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
-                reached = True if cost <=threshold else False
-                xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
-                xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
-                replay_buffer.append([xu, cost, xu_next,reached])
+                if(len(replay_buffer)>=MIN_BUFFER_SIZE):
+                    count +=1
+                    epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count))
+                h_ctg.append(ctg)
                 
-                if steps % UPDATE_Q_TARGET_STEPS == 0:
-                    Q_target.set_weights(Q.get_weights()) 
-                # Sampling from replay buffer and train
-                if len(replay_buffer) >= MIN_BUFFER_SIZE and steps % SAMPLING_STEPS == 0:
-                    xu_batch, cost_batch, xu_next_batch, reached_batch = zip(*sample(replay_buffer, BATCH_SIZE))
-                    xu_batch = tf.convert_to_tensor(np.asarray(xu_batch).squeeze())
-                    xu_next_batch = tf.convert_to_tensor(np.asarray(xu_next_batch).squeeze())
-                    cost_batch1 = np2tf(np.asarray(cost_batch))
-                    with tf.GradientTape() as tape:
-                        # Compute Q target
-                        target_values = Q_target(xu_next_batch, training=True)
-                        target_values_per_input = tf.math.reduce_sum(target_values,axis=1)
-                        # Compute 1-step targets for the critic loss
-                        y = np.zeros(BATCH_SIZE)
-                        for ind, reached_ in enumerate(reached_batch):
-                            if reached_:
-                                y[ind] = cost_batch1[ind]
-                            else:
-                                y[ind] = cost_batch1[ind] + GAMMA*target_values_per_input[ind]    
-                      
-                        # Compute batch of Values associated to the sampled batch of states
-                        # Compute batch of Values associated to the sampled batch of states
-                        Q_value = Q(xu_batch, training=True) 
-                        Q_value_per_input = tf.math.reduce_sum(Q_value,axis=1)
-                        # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
-                        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value_per_input)) 
-                    Q_grad = tape.gradient(Q_loss, Q.trainable_variables)
-                    optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))
-                                
-                x = x_next
-                ctg += gamma_i * cost
-                gamma_i *= GAMMA
-                steps += 1
-    
-            avg_ctg = np.average(h_ctg[-nprint:])
-            if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
-                simulate()
-                print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
-                Q.save_weights("Q_weights.h5")
-                best_ctg = avg_ctg
-            
-            if(len(replay_buffer)>=MIN_BUFFER_SIZE):
-                count +=1
-                epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count))
-            h_ctg.append(ctg)
-            
-            if(PLOT and episode % nprint == 0):
-                plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-                plt.title ("Average cost-to-go")
-                plt.show()         
+                if(PLOT and episode % nprint == 0):
+                    plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
+                    plt.title ("Average cost-to-go")
+                    plt.show()         
+                     
+                if episode % nprint == 0:
+                    dt = time.time() - t
+                    t = time.time()
+                    tot_t = t - t_start
+                    print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.6f , elapsed: %.1f s , tot. time: %.1f m' % (
+                          episode, avg_ctg, len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
+        except KeyboardInterrupt:
+            print('key pressed ...stopping')
                 
-            if episode % nprint == 0:
-                dt = time.time() - t
-                t = time.time()
-                tot_t = t - t_start
-                print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.6f , elapsed: %.1f s , tot. time: %.1f m' % (
-                      episode, avg_ctg, len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
         
-    
-    
-    
+        
+        
     
     
     
