@@ -40,7 +40,7 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 13
 TRAIN                  = True
-THRESHOLD              = 1e-6
+THRESHOLD              = 1e-3
 
 
 def np2tf(y):
@@ -97,6 +97,7 @@ if __name__=='__main__':
 
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
+    nv = env.nv
     Q = get_critic(nx)
     Q.summary()
     Q_target = get_critic(nx)
@@ -154,7 +155,7 @@ if __name__=='__main__':
     #                    env.render()
                         print(cost)
     #                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
-                    reached = True if cost <=threshold else False
+                    reached = True if cost and x[nv:] <= threshold else False
                     xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
                     xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
                     replay_buffer.append([xu, cost, xu_next,reached])
@@ -196,7 +197,7 @@ if __name__=='__main__':
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
 #                    simulate()
                     print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
-                    name = "Q_weights_backup/Q_weights_" + str(episode) + ".h5"
+                    name = "Q_weights_backup/Q_weights_" + str(episode.zfill(5)) + ".h5"
                     Q.save_weights(name)
                     best_ctg = avg_ctg
                 
@@ -217,7 +218,10 @@ if __name__=='__main__':
                     print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.6f , elapsed: %.1f s , tot. time: %.1f m' % (
                           episode, avg_ctg, len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
         except KeyboardInterrupt:
-            print('key pressed ...stopping')
+            print('key pressed ...stopping and saving last weights of Q')
+            name = "Q_weights_backup/Q_weights_final.h5"
+            Q.save_weights(name)
+            
                 
         
         
