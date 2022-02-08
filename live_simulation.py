@@ -6,8 +6,6 @@ Created on Sat Feb  5 22:35:39 2022
 @author: parallels
 """
 import sys
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
@@ -25,7 +23,7 @@ np.set_printoptions(threshold=sys.maxsize)
 SAMPLING_STEPS         = 4             # Steps to sample from replay buffer
 BATCH_SIZE             = 64            # Batch size sampled from replay buffer
 REPLAY_BUFFER_SIZE     = 20000         # Size of replay buffer
-MIN_BUFFER_SIZE        = 5000         # Minimum buffer size to start training
+MIN_BUFFER_SIZE        = 20000         # Minimum buffer size to start training
 UPDATE_Q_TARGET_STEPS  = 100           # Steps to update Q target
 NEPISODES              = 7000          # Number of training episodes
 MAX_EPISODE_LENGTH     = 200           # Max episode length
@@ -37,10 +35,9 @@ MIN_EPSILON            = 0.001         # Minimum of exploration probability
 nprint                 = 10
 PLOT                   = True
 JOINT_COUNT            = 2
-NU                     = 10
-TRAIN                  = True
+NU                     = 11
+TRAIN                  = False
 THRESHOLD              = 1e-6
-
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -69,10 +66,10 @@ def get_critic(nx,nu):
 #    ''' Update the weights of the Q network using the specified batch of data '''
 
 
-def simulate(itr=100,curr=True):
+def simulate(itr=300):
     ## Load NN weights from file
-    if not curr:
-        Q.load_weights("Q_weights.h5")
+    #Q.load_weights("Q_weights-5000.h5")
+    Q.load_weights("Q_weights_2J.h5")
     x= env.reset()
     ctg = 0.0
     gamma_i = 1
@@ -118,6 +115,7 @@ if __name__=='__main__':
     u_list2 = np.repeat(u_list1,nu**(JOINT_COUNT-1))
     u_list = u_list2
     for i in range(JOINT_COUNT-1):
+        print(i)
         if(i==JOINT_COUNT-2):
             u_list3 = np.tile(u_list1,nu**(JOINT_COUNT-1))            
         else:
@@ -187,11 +185,9 @@ if __name__=='__main__':
                 gamma_i *= GAMMA
                 steps += 1
     
-            if cost_to_go <= best_ctg and episode > 0.02*NEPISODES:
-                simulate()
-                print("cost is: ", cost_to_go," saving weights")
-                Q.save_weights("Q_weights.h5")
-                best_ctg = cost_to_go
+                if cost_to_go <= best_ctg and episode > 0.05*NEPISODES:
+                    Q.save_weights("Q_weights.h5")
+                    best_ctg = cost_to_go
             
             if(len(replay_buffer)==MIN_BUFFER_SIZE):
                 count +=1
@@ -207,7 +203,7 @@ if __name__=='__main__':
                 dt = time.time() - t
                 t = time.time()
                 tot_t = t - t_start
-                print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.6f , elapsed: %.1f s , tot. time: %.1f m' % (
+                print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.4f , elapsed: %.1f s , tot. time: %.1f m' % (
                       episode, np.mean(h_ctg[-nprint:]), len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
         
     
