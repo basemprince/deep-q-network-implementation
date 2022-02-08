@@ -196,7 +196,7 @@ if __name__=='__main__':
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
 #                    simulate()
                     print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
-                    name = "Q_weights_backup/Q_weights_" + str(episode) + ".h5"
+                    name = "Q_weights_backup/Q_weights_" + str(episode.zfill(5)) + ".h5"
                     Q.save_weights(name)
                     best_ctg = avg_ctg
                 

@@ -41,22 +41,22 @@ def get_critic(nx):
     model = tf.keras.Model(inputs, outputs)
 
     return model
-
+def reset_env():
+    if JOINT_COUNT == 1:
+        x0  = np.array([[np.pi], [0.]])
+    elif JOINT_COUNT == 2:
+        x0  = np.array([[np.pi, 0.], [0., 0.]])
+    else:
+        x0 = None
+    return env.reset(x0) , 0.0 , 1
+    
 def simulate_folder(itr=100):
     directory = glob.glob('Q_weights_backup/*')
     for file in sorted(directory):
         if file.endswith(".h5"):
             print('loading file' , file)
             Q.load_weights(file)
-            if JOINT_COUNT == 1:
-                x0  = 
-            elif JOINT_COUNT == 2:
-                x0  = np.array([[np.pi, 0.], [0., 0.]])
-            else:
-                x0 = None
-            x= env.reset(x0)
-            ctg = 0.0
-            gamma_i = 1  
+            x , ctg , gamma_i = reset_env() 
             for i in range(ITR):      
                 x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
                 xu_check = np.c_[x_rep,u_list]
@@ -70,13 +70,11 @@ def simulate_folder(itr=100):
                 gamma_i *= GAMMA
                 env.render()
 
-def simulate_sp(file_name,itr=200):
-    directory = 'Q_weights_backup/'
-    file_name = directory + file_name
+def simulate_sp(file_num,itr=200):
+    directory = 'Q_weights_backup/Q_weights_'
+    file_name = directory + str(file_num) + '.h5'
     Q.load_weights(file_name)
-    x= env.reset()
-    ctg = 0.0
-    gamma_i = 1  
+    x , ctg , gamma_i = reset_env()
     for i in range(itr):      
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
