@@ -25,8 +25,8 @@ np.set_printoptions(threshold=sys.maxsize)
 ### --- Hyper paramaters
 SAMPLING_STEPS         = 4             # Steps to sample from replay buffer
 BATCH_SIZE             = 64            # Batch size sampled from replay buffer
-REPLAY_BUFFER_SIZE     = 20000         # Size of replay buffer
-MIN_BUFFER_SIZE        = 5000          # Minimum buffer size to start training
+REPLAY_BUFFER_SIZE     = 100000         # Size of replay buffer
+MIN_BUFFER_SIZE        = 1000          # Minimum buffer size to start training
 NEPISODES              = 10000         # Number of training episodes
 MAX_EPISODE_LENGTH     = 300           # Max episode length
 UPDATE_Q_TARGET        = 1500           # Steps to update Q target
@@ -42,7 +42,7 @@ JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
 THRESHOLD              = 1e-2
-
+FOLDER = 'Q_weights_backup/tr2/'
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -71,7 +71,7 @@ def get_critic(nx):
 #    ''' Update the weights of the Q network using the specified batch of data '''
 def save_model():
     eps_num = str(episode).zfill(5)
-    name = "Q_weights_backup/Q_weights_" + eps_num + ".h5"
+    name = FOLDER+ "Q_weights_" + eps_num + ".h5"
     Q.save_weights(name)
 #    simulate_sp(eps_num)
     
@@ -87,7 +87,7 @@ def reset_env():
     return env.reset(x0) , 0.0 , 1
     
 def simulate_sp(eps_num,itr=100):
-    directory = 'Q_weights_backup/Q_weights_'
+    directory = FOLDER + 'Q_weights_'
     file_name = directory + str(eps_num) + '.h5'
     Q.load_weights(file_name)
     x , ctg , gamma_i = reset_env()
@@ -147,7 +147,7 @@ if __name__=='__main__':
     t_start = t = time.time()
 
     # to clear old saved weights
-    directory = glob.glob('Q_weights_backup/*')
+    directory = glob.glob(FOLDER + '*')
     for file in sorted(directory):
         if file.endswith(".h5"): 
             os.remove(file)
@@ -256,7 +256,7 @@ if __name__=='__main__':
                           episode, avg_ctg, len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
         except KeyboardInterrupt:
             print('key pressed ...stopping and saving last weights of Q')
-            name = "Q_weights_backup/Q_weights_final.h5"
+            name = FOLDER + "Q_weights_final.h5"
             Q.save_weights(name)
             
                 

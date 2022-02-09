@@ -16,8 +16,8 @@ from enviroment.hpendulum_2 import HPendulum
 import time
 import matplotlib.pyplot as plt
 
-FOLDER = 'Q_weights_backup/'
-#FOLDER = 'Q_weights_backup/tr/'
+#FOLDER = 'Q_weights_backup/'
+FOLDER = 'Q_weights_backup/tr2/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -54,7 +54,7 @@ def reset_env():
         x0  = np.array([[np.pi, 0.], [0., 0.]])
     else:
         x0 = None
-    return env.reset(x0) , 0.0 , 1, False
+    return env.reset(x0) , 0.0 , 1 , False
     
 def simulate_folder(itr=100):
     h_ctg = []
@@ -87,17 +87,16 @@ def simulate_folder(itr=100):
                 
             h_ctg.append(ctg)
             model_sucess.append(reached)
-            if ctg < best_ctg and reached:
+            if ctg < best_ctg:
                 best_ctg = ctg
                 best_model = file
             print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",round(ctg,3))
-    print("the best model performance is:", best_model, "with a cost to go of:",round(best_ctg,3)) if any(model_sucess) else print("None of the models reached target")
+    print("the best model performance is:", best_model, "with a cost to go of:",round(best_ctg,3))
     if(PLOT):
         plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
         plt.xlabel("")
         plt.title ("Average cost-to-go")
-        plt.show()                 
-
+        plt.show()   
 
 def simulate_sp(file_num,itr=200):
     directory = FOLDER + 'Q_weights_'
@@ -122,6 +121,7 @@ def simulate_sp(file_num,itr=200):
         gamma_i *= GAMMA
         env.render()
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
+
 
 def play_final(itr=300):
     simulate_sp('final',itr)

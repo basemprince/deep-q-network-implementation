@@ -16,8 +16,8 @@ from enviroment.hpendulum_2 import HPendulum
 import time
 import matplotlib.pyplot as plt
 
-FOLDER = 'Q_weights_backup/'
-#FOLDER = 'Q_weights_backup/tr/'
+#FOLDER = 'Q_weights_backup/'
+FOLDER = 'Q_weights_backup/tr/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -31,18 +31,16 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 ITR                    = 200
-THRESHOLD_C            = 1e-2
-THRESHOLD_V            = 1e-1
-RENDER                 = True
+THRESHOLD              = 1e-3
 
 def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
-    inputs = layers.Input(shape=(nx+JOINT_COUNT))
+    inputs = layers.Input(shape=(nx))
     state_out1 = layers.Dense(16, activation="relu")(inputs) 
     state_out2 = layers.Dense(32, activation="relu")(state_out1) 
     state_out3 = layers.Dense(64, activation="relu")(state_out2) 
     state_out4 = layers.Dense(64, activation="relu")(state_out3)
-    outputs = layers.Dense(JOINT_COUNT)(state_out4)
+    outputs = layers.Dense(JOINT_COUNT*NU)(state_out4)
 
     model = tf.keras.Model(inputs, outputs)
 
@@ -54,20 +52,15 @@ def reset_env():
         x0  = np.array([[np.pi, 0.], [0., 0.]])
     else:
         x0 = None
-    return env.reset(x0) , 0.0 , 1, False
+    return env.reset(x0) , 0.0 , 1
     
 def simulate_folder(itr=100):
-    h_ctg = []
-    model_sucess = []
-    best_model = ''
     directory = glob.glob(FOLDER+'*')
     for file in sorted(directory):
         if file.endswith(".h5"):
-            print('loading Model' , file,end='. ')
+            print('loading file' , file)
             Q.load_weights(file)
-            best_ctg = np.inf
-            best_model = ''
-            x , ctg , gamma_i , reached = reset_env() 
+            x , ctg , gamma_i = reset_env() 
             for i in range(ITR):      
                 x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
                 xu_check = np.c_[x_rep,u_list]
@@ -75,36 +68,17 @@ def simulate_folder(itr=100):
                 u_ind = np.argmin(pred.sum(axis=1), axis=0)
                 u = u_list[u_ind]
                 x, cost = env.step(u)
-        #        print(cost , x[nv:])
-                if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
-                    reached = True
-#                    print("sucessfully reached")
-                elif cost > THRESHOLD_C and (abs(x[nv:])> THRESHOLD_V).all() :
-                    reached = False
+                if (cost < THRESHOLD):
+                    print (cost)
                 ctg += gamma_i*cost
                 gamma_i *= GAMMA
-                if(RENDER): env.render()
-                
-            h_ctg.append(ctg)
-            model_sucess.append(reached)
-            if ctg < best_ctg and reached:
-                best_ctg = ctg
-                best_model = file
-            print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",round(ctg,3))
-    print("the best model performance is:", best_model, "with a cost to go of:",round(best_ctg,3)) if any(model_sucess) else print("None of the models reached target")
-    if(PLOT):
-        plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-        plt.xlabel("")
-        plt.title ("Average cost-to-go")
-        plt.show()                 
-
+                env.render()
 
 def simulate_sp(file_num,itr=200):
     directory = FOLDER + 'Q_weights_'
     file_name = directory + str(file_num) + '.h5'
-    print('loading file' , file_name)
     Q.load_weights(file_name)
-    x , ctg , gamma_i, reached  = reset_env()
+    x , ctg , gamma_i = reset_env()
     for i in range(itr):      
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
@@ -112,20 +86,44 @@ def simulate_sp(file_num,itr=200):
         u_ind = np.argmin(pred.sum(axis=1), axis=0)
         u = u_list[u_ind]
         x, cost = env.step(u)
-#        print(cost , x[nv:])
-        if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
-            reached = True
-            print("sucessfully reached")
-        elif cost > THRESHOLD_C and (abs(x[nv:])> THRESHOLD_V).all() :
-            reached = False
+        print(cost)
         ctg += gamma_i*cost
         gamma_i *= GAMMA
         env.render()
-    print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
+
+def simulate_folder2(itr=100):
+    directory = glob.glob(FOLDER+'*')
+    for file in sorted(directory):
+        if file.endswith(".h5"):
+            print('loading file' , file)
+            Q.load_weights(file)
+            x , ctg , gamma_i = reset_env() 
+            for i in range(ITR):      
+                u_output = Q.predict(x.reshape(1,-1))
+                u = np.argmin(u_output.reshape(NU,JOINT_COUNT), axis=0)
+                x, cost = env.step(u)
+        #        print(cost)
+                ctg += gamma_i*cost
+                gamma_i *= GAMMA
+                env.render()
+
 
 def play_final(itr=300):
     simulate_sp('final',itr)
 
+def simulate_sp2(eps_num,itr=100):
+    directory = 'Q_weights_backup/tr/Q_weights_'
+    file_name = directory + str(eps_num) + '.h5'
+    Q.load_weights(file_name)
+    x , ctg , gamma_i = reset_env()
+    for i in range(itr):      
+        u_output = Q.predict(x.reshape(1,-1))
+        u = np.argmin(u_output.reshape(NU,JOINT_COUNT), axis=0)
+        x, cost = env.step(u)
+#        print(cost)
+        ctg += gamma_i*cost
+        gamma_i *= GAMMA
+        env.render()
 
 if __name__=='__main__':
     ### --- Random seed
@@ -135,7 +133,6 @@ if __name__=='__main__':
 
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
-    nv = env.nv
     Q = get_critic(nx)
     Q.summary()
     Q_target = get_critic(nx)
@@ -155,7 +152,7 @@ if __name__=='__main__':
             u_list3 = np.tile(u_list3,NU**(i+1))        
         u_list = np.c_[u_list,u_list3]
     
-    simulate_folder(ITR)
+    simulate_folder2(ITR)
         
 
     

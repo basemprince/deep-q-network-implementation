@@ -36,11 +36,21 @@ class HPendulum:
 
     def step(self,iu):
         u = self.d2cu(iu)
+        u = u if type(u) is np.ndarray else [u]
         self.x, cost = self.pendulum.step(u)
         return self.x, cost
     
     def render(self):
         self.pendulum.render()
+        
+    def u_fix(self, u):
+        u_fixed = []
+        zero = self.c2du(0)
+        for i in np.arange(0, self.nv -1):
+            u_fixed.insert(0, zero)
+        u_fixed.insert(0,int(u))
+        u_fixed = np.asarray(u_fixed)
+        return u_fixed
 
 if __name__=="__main__":
     print("Start tests")
