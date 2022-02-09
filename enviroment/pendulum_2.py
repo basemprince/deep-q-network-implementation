@@ -132,7 +132,7 @@ class Pendulum:
         ''' Simulate one time step '''
 #        u = u if type(u) is np.ndarray else [u]
         assert(len(u)==self.nu)
-        _,self.r = self.dynamics(self.x, u)
+        _,self.r = self.dynamics(self.x, u,True)
         return self.obs(self.x), self.r
 
     def obs(self, x):
@@ -147,7 +147,7 @@ class Pendulum:
         pin.framesKinematics(self.model, self.data,q)
         return self.data.oMf[1].translation[2,0]
 
-    def dynamics(self, x, u, display=False):
+    def dynamics(self, x, u, display=True):
         '''
         Dynamic function: x,u -> xnext=f(x,y).
         Put the result in x (the initial value is destroyed). 
@@ -162,7 +162,7 @@ class Pendulum:
         q = modulePi(x[:self.nq])
         v = x[self.nq:]
         u = np.clip(np.reshape(np.array(u),self.nu),-self.umax,self.umax)
-
+        check = False
         DT = self.DT/self.NDT
         for i in range(self.NDT):
             pin.computeAllTerms(self.model,self.data,q,v)
@@ -174,8 +174,15 @@ class Pendulum:
 
             q    += (v+0.5*DT*a)*DT
             v    += a*DT
-            cost += (sumsq(q) + sumsq(v) + 1e-3*sumsq(u))*DT # cost function
-
+            for i in range(1,len(q)):
+#                print (i, abs(i)>2.7)
+                if abs(q[i]) > 2.7:
+                    check = True
+            if (not check):
+                cost += (sumsq(q) + 1e-1 * sumsq(v) + 1e-3*sumsq(u))*DT # cost function
+            else:
+                print('triggered')
+                cost += (1e2*sumsq(q) + 1e-1 * sumsq(v) + 1e-3*sumsq(u))*DT 
             if display:
                 self.display(q)
                 time.sleep(1e-4)
