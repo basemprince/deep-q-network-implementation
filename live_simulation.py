@@ -33,7 +33,7 @@ NU                     = 11
 ITR                    = 200
 THRESHOLD_C            = 1e-2
 THRESHOLD_V            = 1e-1
-RENDER                 = False
+RENDER                 = True
 
 def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
@@ -55,6 +55,9 @@ def reset_env():
     else:
         x0 = None
     return env.reset(x0) , 0.0 , 1, False
+
+def reset_env_rand():
+    return env.reset() , 0.0 , 1, False
     
 def simulate_folder(itr=100):
     h_ctg = []
@@ -97,30 +100,39 @@ def simulate_folder(itr=100):
         plt.show()                 
 
 
-def simulate_sp(file_num,itr=200):
+def simulate_sp(file_num,itr=200,rand=False,rend=True):
     directory = FOLDER + 'Q_weights_'
     file_name = directory + str(file_num) + '.h5'
     print('loading file' , file_name)
     Q.load_weights(file_name)
-    x , ctg , gamma_i, reached  = reset_env()
+    x , ctg , gamma_i, reached  = reset_env() if not rand else reset_env_rand()
     for i in range(itr):      
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
         pred = Q.__call__(xu_check)
         u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
-        u_ind = np.argmin(pred.sum(axis=1), axis=0)
         u = u_list[u_ind]
         x, cost = env.step(u)
 #        print(cost , x[nv:])
         if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
             reached = True
-            print("sucessfully reached")
+#            print("sucessfully reached")
         elif cost > THRESHOLD_C or (abs(x[nv:])> THRESHOLD_V).all() :
             reached = False
         ctg += gamma_i*cost
         gamma_i *= GAMMA
-        env.render()
+        if (rend):
+            env.render()
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
+    return reached
+
+def simulate_to_death(file_num,iter=20,rend=False):
+    sucess = 0
+    for i in range(iter):
+        reached = simulate_sp(file_num,200,True,rend)
+        if reached: sucess+=1
+    print("percent sucess:" ,round(sucess/iter *100.0,2), "%" )
+
 
 def play_final(itr=300):
     simulate_sp('final',itr)
