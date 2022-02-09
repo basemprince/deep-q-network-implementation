@@ -43,6 +43,7 @@ NU                     = 11
 TRAIN                  = True
 THRESHOLD              = 1e-2
 FOLDER = 'Q_weights_backup/tr2/'
+FOLDER = 'Q_weights_backup/tr/'
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -71,56 +72,11 @@ def get_critic(nx):
 #    ''' Update the weights of the Q network using the specified batch of data '''
 def save_model():
     eps_num = str(episode).zfill(5)
-    name = FOLDER+ "Q_weights_" + eps_num + ".h5"
+    name = FOLDER + "Q_weights_" + eps_num + ".h5"
     Q.save_weights(name)
 #    simulate_sp(eps_num)
     
 
-
-def reset_env():
-    if JOINT_COUNT == 1:
-        x0  = np.array([[np.pi], [0.]])
-    elif JOINT_COUNT == 2:
-        x0  = np.array([[np.pi, 0.], [0., 0.]])
-    else:
-        x0 = None
-    return env.reset(x0) , 0.0 , 1
-    
-def simulate_sp(eps_num,itr=100):
-    directory = FOLDER + 'Q_weights_'
-    file_name = directory + str(eps_num) + '.h5'
-    Q.load_weights(file_name)
-    x , ctg , gamma_i = reset_env()
-    for i in range(itr):      
-        x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
-        xu_check = np.c_[x_rep,u_list]
-        pred = Q.predict(xu_check)
-        u_ind = np.argmin(pred.sum(axis=1), axis=0)
-        u = u_list[u_ind]
-        x, cost = env.step(u)
-#        print(cost)
-        ctg += gamma_i*cost
-        gamma_i *= GAMMA
-        env.render()
-
-def simulate(itr=100,curr=True):
-    ## Load NN weights from file
-    if not curr:
-        Q.load_weights("Q_weights.h5")
-    x= env.reset()
-    ctg = 0.0
-    gamma_i = 1
-    
-    for i in range(itr):      
-        x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
-        xu_check = np.c_[x_rep,u_list]
-        pred = Q.predict(xu_check)
-        u_ind = np.argmin(pred.sum(axis=1), axis=0)
-        u = u_list[u_ind]
-        x, cost = env.step(u)
-        ctg += gamma_i*cost
-        gamma_i *= GAMMA
-        env.render() 
 
 if __name__=='__main__':
     ### --- Random seed
@@ -143,7 +99,6 @@ if __name__=='__main__':
     
     steps = 0
     epsilon = EPSILON
-    threshold = THRESHOLD
     t_start = t = time.time()
 
     # to clear old saved weights
@@ -180,13 +135,12 @@ if __name__=='__main__':
                     else:
                         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
                         xu_check = np.c_[x_rep,u_list]
-                        pred = Q.predict(xu_check)
-                        u_ind = np.argmin(pred.sum(axis=1), axis=0)
+                        pred = Q.__call__(xu_check)
+                        u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
                         u = u_list[u_ind]
                     x_next, cost = env.step(u)
-    #                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
-                    reached = False
-#                    reached = True if (cost and x[nv:]).all() <= threshold else False
+#                    reached = False
+                    reached = True if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else False
                     if(reached):
     #                    env.render()
                         print(x , cost)
@@ -230,7 +184,7 @@ if __name__=='__main__':
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
 #                    simulate()
                     print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
-#                    name = "Q_weights_backup/Q_weights_" + str(episode).zfill(5) + ".h5"
+#                    name = FOLDER + "Q_weights_" + str(episode).zfill(5) + ".h5"
 #                    Q.save_weights(name)
                     best_ctg = avg_ctg
 
@@ -252,13 +206,12 @@ if __name__=='__main__':
                     dt = time.time() - t
                     t = time.time()
                     tot_t = t - t_start
-                    print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.6f , elapsed: %.1f s , tot. time: %.1f m' % (
-                          episode, avg_ctg, len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
+                    print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , elapsed: %.1f s , tot. time: %.1f m' % (
+                          episode, avg_ctg, len(replay_buffer), 100*epsilon, dt, tot_t/60.0))
         except KeyboardInterrupt:
             print('key pressed ...stopping and saving last weights of Q')
             name = FOLDER + "Q_weights_final.h5"
-            Q.save_weights(name)
-            
+            Q.save_weights(name)        
                 
         
         
