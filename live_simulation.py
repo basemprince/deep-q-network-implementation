@@ -33,7 +33,7 @@ NU                     = 11
 ITR                    = 200
 THRESHOLD_C            = 1e-2
 THRESHOLD_V            = 1e-1
-RENDER                 = True
+RENDER                 = False
 
 def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
@@ -70,15 +70,15 @@ def simulate_folder(itr=100):
             for i in range(ITR):      
                 x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
                 xu_check = np.c_[x_rep,u_list]
-                pred = Q.predict(xu_check)
-                u_ind = np.argmin(pred.sum(axis=1), axis=0)
+                pred = Q.__call__(xu_check)
+                u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
                 u = u_list[u_ind]
                 x, cost = env.step(u)
-        #        print(cost , x[nv:])
+#                print(cost , x[nv:])
                 if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
                     reached = True
 #                    print("sucessfully reached")
-                elif cost > THRESHOLD_C and (abs(x[nv:])> THRESHOLD_V).all() :
+                elif cost > THRESHOLD_C or (abs(x[nv:])> THRESHOLD_V).all() :
                     reached = False
                 ctg += gamma_i*cost
                 gamma_i *= GAMMA
@@ -106,7 +106,8 @@ def simulate_sp(file_num,itr=200):
     for i in range(itr):      
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
-        pred = Q.predict(xu_check)
+        pred = Q.__call__(xu_check)
+        u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
         u_ind = np.argmin(pred.sum(axis=1), axis=0)
         u = u_list[u_ind]
         x, cost = env.step(u)
@@ -114,7 +115,7 @@ def simulate_sp(file_num,itr=200):
         if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
             reached = True
             print("sucessfully reached")
-        elif cost > THRESHOLD_C and (abs(x[nv:])> THRESHOLD_V).all() :
+        elif cost > THRESHOLD_C or (abs(x[nv:])> THRESHOLD_V).all() :
             reached = False
         ctg += gamma_i*cost
         gamma_i *= GAMMA

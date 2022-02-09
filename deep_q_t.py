@@ -25,7 +25,7 @@ np.set_printoptions(threshold=sys.maxsize)
 ### --- Hyper paramaters
 SAMPLING_STEPS         = 4             # Steps to sample from replay buffer
 BATCH_SIZE             = 64            # Batch size sampled from replay buffer
-REPLAY_BUFFER_SIZE     = 20000         # Size of replay buffer
+REPLAY_BUFFER_SIZE     = 100000         # Size of replay buffer
 MIN_BUFFER_SIZE        = 5000          # Minimum buffer size to start training
 NEPISODES              = 10000         # Number of training episodes
 MAX_EPISODE_LENGTH     = 300           # Max episode length
@@ -41,8 +41,8 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
-THRESHOLD              = 1e-2
-
+THRESHOLD_C            = 1e-2
+THRESHOLD_V            = 1e-1
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -94,7 +94,7 @@ def simulate_sp(eps_num,itr=100):
     for i in range(itr):      
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
-        pred = Q.predict(xu_check)
+        pred = Q.__call__(xu_check)
         u_ind = np.argmin(pred.sum(axis=1), axis=0)
         u = u_list[u_ind]
         x, cost = env.step(u)
@@ -114,7 +114,7 @@ def simulate(itr=100,curr=True):
     for i in range(itr):      
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
-        pred = Q.predict(xu_check)
+        pred = Q.__call__(xu_check)
         u_ind = np.argmin(pred.sum(axis=1), axis=0)
         u = u_list[u_ind]
         x, cost = env.step(u)
@@ -143,7 +143,6 @@ if __name__=='__main__':
     
     steps = 0
     epsilon = EPSILON
-    threshold = THRESHOLD
     t_start = t = time.time()
 
     # to clear old saved weights
@@ -180,13 +179,12 @@ if __name__=='__main__':
                     else:
                         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
                         xu_check = np.c_[x_rep,u_list]
-                        pred = Q.predict(xu_check)
-                        u_ind = np.argmin(pred.sum(axis=1), axis=0)
+                        pred = Q.__call__(xu_check)
+                        u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
                         u = u_list[u_ind]
                     x_next, cost = env.step(u)
-    #                threshold = max(MIN_EPSILON*1e-1, np.exp(-EPSILON_DECAY*1e-1*episode)*1e-1)
-                    reached = False
-#                    reached = True if (cost and x[nv:]).all() <= threshold else False
+#                    reached = False
+                    reached = True if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else False
                     if(reached):
     #                    env.render()
                         print(x , cost)
@@ -252,8 +250,8 @@ if __name__=='__main__':
                     dt = time.time() - t
                     t = time.time()
                     tot_t = t - t_start
-                    print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , threshold: %.6f , elapsed: %.1f s , tot. time: %.1f m' % (
-                          episode, avg_ctg, len(replay_buffer), 100*epsilon, threshold, dt, tot_t/60.0))
+                    print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , elapsed: %.1f s , tot. time: %.1f m' % (
+                          episode, avg_ctg, len(replay_buffer), 100*epsilon, dt, tot_t/60.0))
         except KeyboardInterrupt:
             print('key pressed ...stopping and saving last weights of Q')
             name = "Q_weights_backup/Q_weights_final.h5"
