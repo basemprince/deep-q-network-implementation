@@ -133,7 +133,6 @@ def simulate_to_death(file_num,iter=20,rend=False):
         if reached: sucess+=1
     print("percent sucess:" ,round(sucess/iter *100.0,2), "%" )
 
-
 def play_final(itr=300):
     simulate_sp('final',itr)
 
