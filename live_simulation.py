@@ -60,20 +60,12 @@ def simulate_folder(itr=100):
     h_ctg = []
     model_sucess = []
     best_model = ''
-<<<<<<< HEAD
     best_ctg = np.inf
-=======
->>>>>>> c77536dd4afbccc3f0f2fbecd2ba5825ee14c4bd
     directory = glob.glob(FOLDER+'*')
     for file in sorted(directory):
         if file.endswith(".h5"):
             print('loading Model' , file,end='. ')
             Q.load_weights(file)
-<<<<<<< HEAD
-=======
-            best_ctg = np.inf
-            best_model = ''
->>>>>>> c77536dd4afbccc3f0f2fbecd2ba5825ee14c4bd
             x , ctg , gamma_i , reached = reset_env() 
             for i in range(ITR):      
                 x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
@@ -90,8 +82,7 @@ def simulate_folder(itr=100):
                     reached = False
                 ctg += gamma_i*cost
                 gamma_i *= GAMMA
-                if(RENDER): env.render()
-                
+                if(RENDER): env.render()   
             h_ctg.append(ctg)
             model_sucess.append(reached)
             if ctg < best_ctg and reached:

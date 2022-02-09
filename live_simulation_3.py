@@ -33,11 +33,8 @@ NU                     = 11
 ITR                    = 200
 THRESHOLD_C            = 1e-2
 THRESHOLD_V            = 1e-1
-<<<<<<< HEAD
-RENDER                 = False
-=======
 RENDER                 = True
->>>>>>> c77536dd4afbccc3f0f2fbecd2ba5825ee14c4bd
+
 
 def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
@@ -64,20 +61,12 @@ def simulate_folder(itr=100):
     h_ctg = []
     model_sucess = []
     best_model = ''
-<<<<<<< HEAD
     best_ctg = np.inf
-=======
->>>>>>> c77536dd4afbccc3f0f2fbecd2ba5825ee14c4bd
     directory = glob.glob(FOLDER+'*')
     for file in sorted(directory):
         if file.endswith(".h5"):
             print('loading Model' , file,end='. ')
             Q.load_weights(file)
-<<<<<<< HEAD
-=======
-            best_ctg = np.inf
-            best_model = ''
->>>>>>> c77536dd4afbccc3f0f2fbecd2ba5825ee14c4bd
             x , ctg , gamma_i , reached = reset_env() 
             for i in range(ITR):      
                 x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
@@ -98,29 +87,19 @@ def simulate_folder(itr=100):
                 
             h_ctg.append(ctg)
             model_sucess.append(reached)
-<<<<<<< HEAD
+
             if ctg < best_ctg and reached:
                 best_ctg = ctg
                 best_model = file
             print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",round(ctg,3))
     print("the best model performance is:", best_model, "with a cost to go of:",round(best_ctg,3)) if any(model_sucess) else print("None of the models reached target")
-=======
-            if ctg < best_ctg:
-                best_ctg = ctg
-                best_model = file
-            print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",round(ctg,3))
-    print("the best model performance is:", best_model, "with a cost to go of:",round(best_ctg,3))
->>>>>>> c77536dd4afbccc3f0f2fbecd2ba5825ee14c4bd
     if(PLOT):
         plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
         plt.xlabel("")
         plt.title ("Average cost-to-go")
-<<<<<<< HEAD
+
         plt.show()                 
 
-=======
-        plt.show()   
->>>>>>> c77536dd4afbccc3f0f2fbecd2ba5825ee14c4bd
 
 def simulate_sp(file_num,itr=200):
     directory = FOLDER + 'Q_weights_'
