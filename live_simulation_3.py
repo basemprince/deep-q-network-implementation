@@ -16,8 +16,8 @@ from enviroment.hpendulum_2 import HPendulum
 import time
 import matplotlib.pyplot as plt
 
-FOLDER = 'Q_weights_backup/'
-#FOLDER = 'Q_weights_backup/tr/'
+#FOLDER = 'Q_weights_backup/'
+FOLDER = 'Q_weights_backup/tr2/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -33,7 +33,7 @@ NU                     = 11
 ITR                    = 200
 THRESHOLD_C            = 1e-2
 THRESHOLD_V            = 1e-1
-RENDER                 = True
+RENDER                 = False
 
 def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
@@ -54,7 +54,7 @@ def reset_env():
         x0  = np.array([[np.pi, 0.], [0., 0.]])
     else:
         x0 = None
-    return env.reset(x0) , 0.0 , 1, False
+    return env.reset(x0) , 0.0 , 1 , False
     
 def simulate_folder(itr=100):
     h_ctg = []
@@ -121,6 +121,7 @@ def simulate_sp(file_num,itr=200):
         gamma_i *= GAMMA
         env.render()
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
+
 
 def play_final(itr=300):
     simulate_sp('final',itr)

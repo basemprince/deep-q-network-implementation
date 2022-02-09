@@ -162,7 +162,6 @@ class Pendulum:
         q = modulePi(x[:self.nq])
         v = x[self.nq:]
         u = np.clip(np.reshape(np.array(u),self.nu),-self.umax,self.umax)
-        check = False
         DT = self.DT/self.NDT
         for i in range(self.NDT):
             pin.computeAllTerms(self.model,self.data,q,v)
@@ -174,15 +173,7 @@ class Pendulum:
 
             q    += (v+0.5*DT*a)*DT
             v    += a*DT
-            for i in range(1,len(q)):
-#                print (i, abs(i)>2.7)
-                if abs(q[i]) > 2.7:
-                    check = True
-            if (not check):
-                cost += (sumsq(q) + 1e-1 * sumsq(v) + 1e-3*sumsq(u))*DT # cost function
-            else:
-                print('triggered')
-                cost += (1e2*sumsq(q) + 1e-1 * sumsq(v) + 1e-3*sumsq(u))*DT 
+            cost += (sumsq(q) + 1e-1 * sumsq(v) + 1e-3*sumsq(u))*DT # cost function
             if display:
                 self.display(q)
                 time.sleep(1e-4)
