@@ -20,7 +20,7 @@ import re
 
 
 #FOLDER = 'Q_weights_backup/'
-FOLDER = 'model_backup/fourth_run/'
+FOLDER = 'model_backup/third_run/'
 #FOLDER = 'Q_weights_backup/tr/'
 
 

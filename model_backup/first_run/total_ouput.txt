@@ -1,0 +1,16 @@
+loading Model: #00000 acc: 0.0 % ctg: 11.9
+loading Model: #00500 acc: 0.0 % ctg: 9.7
+loading Model: #01000 acc: 0.0 % ctg: 9.2
+loading Model: #01500 acc: 0.0 % ctg: 8.7
+loading Model: #02000 acc: 29.7 % ctg: 8.6
+loading Model: #02500 acc: 0.0 % ctg: 8.9
+loading Model: #03000 acc: 0.0 % ctg: 9.0
+loading Model: #03500 acc: 2.0 % ctg: 8.9
+loading Model: #04000 acc: 8.9 % ctg: 8.9
+loading Model: #04500 acc: 0.0 % ctg: 9.3
+loading Model: #05000 acc: 0.0 % ctg: 9.2
+loading Model: #05500 acc: 0.0 % ctg: 9.2
+loading Model: #06000 acc: 0.0 % ctg: 9.6
+loading Model: #06500 acc: 1.0 % ctg: 9.6
+Best performance: # 02000 ctg: 8.625 acc: 29.7 %
+total time taken: 11.0 minutes

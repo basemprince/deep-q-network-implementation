@@ -57,9 +57,9 @@ loading Model Model backup/fourth_run/Q_weights_05400.h5. acc: 54.0 ctg: 9.4
 Best performance: Model backup/fourth_run/Q_weights_05400.h5 ctg: 9.438 acc: 54.0
 
 
-sampling steps = 4
+sampling steps = 3
 batch size = 64
 replay buffer = 100000
 min buffer size =5000
-max episdoe length = 300
-update q = 1500
+max episdoe length = 400
+update q = 2500

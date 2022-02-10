@@ -7,7 +7,6 @@ Created on Sat Feb  5 22:35:39 2022
 """
 import sys
 import os
-import glob
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -43,8 +42,9 @@ NU                     = 11
 TRAIN                  = True
 STAY_UP                = 50
 THRESHOLD_Q            = 1e-1
-THRESHOLD_V            = 1e-1
-THRESHOLD_C            = 1e-2
+THRESHOLD_V            = 9e-1
+THRESHOLD_C            = 9e-1
+MIN_THRESHOLD          = 9e-3
 
 
 def create_folder_backup():
@@ -105,6 +105,7 @@ if __name__=='__main__':
     print("Seed = %d" % RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
     FOLDER , MODEL_NUM = create_folder_backup()
+    print("Start training Model #", MODEL_NUM)
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
@@ -121,7 +122,6 @@ if __name__=='__main__':
     steps = 0
     epsilon = EPSILON
     t_start = t = time.time()
-    threshold = THRESHOLD_V
 
     # to clear old saved weights
 #    directory = glob.glob(FOLDER + '*')
@@ -145,7 +145,8 @@ if __name__=='__main__':
         simulate()
     else:
         try:
-            count = 0
+            count_eps = 0
+            count_thresh = 0
             for episode in range(1,NEPISODES+1):
                 ctg = 0.0
                 x = env.reset()
@@ -211,23 +212,22 @@ if __name__=='__main__':
                 avg_ctg = np.average(h_ctg[-nprint:])
                 
                 if dec_threshold:
-                    threshold*= 0.95
+                    count_thresh +=1
+                    THRESHOLD_V = THRESHOLD_C = max(MIN_THRESHOLD, np.exp(-EPSILON_DECAY*count_thresh))
+
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
-#                    simulate()
-                    print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
-#                    name = FOLDER + "Q_weights_" + str(episode).zfill(5) + ".h5"
-#                    Q.save_weights(name)
+                    print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg)
                     best_ctg = avg_ctg
 
-
                 if(len(replay_buffer)>=MIN_BUFFER_SIZE):
-                    count +=1
-                    epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count))
+                    count_eps +=1
+                    epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count_eps))
+                    
                 h_ctg.append(ctg)
                 
                 if(PLOT and episode % nprint == 0):
                     plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-                    plt.title ("Average cost-to-go")
+                    plt.title ("Average cost to go")
                     plt.show()       
                     
                 if episode % SAVE_MODEL == 0:
@@ -238,8 +238,12 @@ if __name__=='__main__':
                     t = time.time()
                     tot_t = t - t_start
                     print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f, threshold: %.5f, elapsed: %.1f s , tot. time: %.1f m' % (
-                          episode, avg_ctg, len(replay_buffer), 100*epsilon,threshold, dt, tot_t/60.0))
-
+                          episode, avg_ctg, len(replay_buffer), 100*epsilon,THRESHOLD_V, dt, tot_t/60.0))
+            if(PLOT):
+                plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
+                plt.title ("Average cost to go")
+                plt.savefig(FOLDER + "ctg_training.png")
+                plt.show()   
         except KeyboardInterrupt:
             print('key pressed ...stopping and saving last weights of Q')
             name = FOLDER + 'MODEL_'+ MODEL_NUM + '_' + 'final.h5'

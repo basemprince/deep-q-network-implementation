@@ -104,8 +104,8 @@ def simulate_folder(itr=INNER_ITR):
     print("the best model performance is:", best_model, "with a cost to go of:",round(best_ctg,3)) if any(model_sucess) else print("None of the models reached target")
     if(PLOT):
         plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-        plt.xlabel("")
-        plt.title ("Average cost-to-go")
+        plt.xlabel("Episode Number")
+        plt.title ("Average Cost to Go")
         plt.show()                 
 
 
