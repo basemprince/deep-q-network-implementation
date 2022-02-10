@@ -40,8 +40,8 @@ class HPendulum:
         self.x, cost = self.pendulum.step(u)
         return self.x, cost
     
-    def render(self):
-        self.pendulum.render()
+    def render(self,slow_down=False):
+        self.pendulum.render(slow_down=slow_down)
         
     def u_fix(self, u):
         u_fixed = []

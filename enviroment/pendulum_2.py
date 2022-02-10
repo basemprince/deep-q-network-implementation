@@ -93,11 +93,13 @@ class Pendulum:
 
         self.model.addFrame( pin.Frame('tip', jointId, 0, jointPlacement, pin.FrameType.OP_FRAME) )
 
-    def display(self, q):
+    def display(self, q, slow_down=False):
         ''' Display the robot in the viewer '''
         pin.forwardKinematics(self.model, self.data,q)
         for visual in self.visuals:
             visual.place( self.viewer, self.data.oMi[visual.jointParent] )
+            if(slow_down):
+                time.sleep(0.006)
         self.viewer.viewer.gui.refresh()
 
 
@@ -183,9 +185,9 @@ class Pendulum:
         
         return x,cost
      
-    def render(self,pt=False):
+    def render(self,slow_down=False,pt=False):
         q = self.x[:self.nq]
         if(pt):
             print(self.x)
-        self.display(q)
+        self.display(q,slow_down)
         time.sleep(self.DT/10)

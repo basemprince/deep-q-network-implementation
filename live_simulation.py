@@ -36,7 +36,7 @@ THRESHOLD_C            = 9e-1          # threshold for cost
 THRESHOLD_V            = 9e-1          # threshold for velocity
 STAY_UP                = 50            # how many iterations doing hand stand to account as target achieved
 RENDER                 = False         # simulate the movements
-
+SLOW_DOWN              = True          # to slow down render of simulation
 def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
@@ -97,7 +97,7 @@ def simulate_folder(itr=INNER_ITR):
                     break
                 ctg += gamma_i*cost
                 gamma_i *= GAMMA
-                if(RENDER): env.render()   
+                if(RENDER): env.render(SLOW_DOWN)   
             h_ctg.append(ctg)
             model_sucess.append(reached)
             if ctg < best_ctg and reached:
@@ -143,7 +143,7 @@ def simulate_sp(file_num,itr=INNER_ITR,rand=False,rend=True):
         ctg += gamma_i*cost
         gamma_i *= GAMMA
         if (rend):
-            env.render()
+            env.render(SLOW_DOWN)
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
     return reached
 
