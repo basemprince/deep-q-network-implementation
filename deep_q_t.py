@@ -8,7 +8,7 @@ Created on Sat Feb  5 22:35:39 2022
 import sys
 import os
 import glob
-#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
@@ -41,12 +41,28 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
-THRESHOLD_Q            = 9e-3
-THRESHOLD_V            = 5e-3
+THRESHOLD_Q            = 1e-1
+THRESHOLD_V            = 1e-1
 THRESHOLD_C            = 1e-2
 
 
-FOLDER = 'Q_weights_backup/tr/'
+def create_folder_backup():
+    MODEL_NUM = str(randint(100000))
+    PARAM_LIST = ['SAMPLING_STEPS','BATCH_SIZE','REPLAY_BUFFER_SIZE'
+                  ,'MIN_BUFFER_SIZE','MAX_EPISODE_LENGTH','UPDATE_Q_TARGET'
+                  ,'QVALUE_LEARNING_RATE']
+    FOLDER = 'Q_weights_backup/model_' + MODEL_NUM + '/'
+    while os.path.exists(FOLDER):
+        MODEL_NUM = str(randint(100000))
+        FOLDER = 'Q_weights_backup/model_' + MODEL_NUM + '/'
+    os.makedirs(FOLDER)
+    f= open(FOLDER + "parameters.txt","w+")
+    parameters = list(globals().items())
+    for param in parameters:
+        if param[0] in PARAM_LIST:
+            f.write(param[0] + "=  %f\r\n" % (param[1]))
+    f.close()
+    return FOLDER , MODEL_NUM
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''
@@ -73,9 +89,10 @@ def get_critic(nx):
 
 #def update(batch):
 #    ''' Update the weights of the Q network using the specified batch of data '''
+
 def save_model():
     eps_num = str(episode).zfill(5)
-    name = FOLDER + "Q_weights_" + eps_num + ".h5"
+    name = FOLDER + "MODEL_"+ MODEL_NUM + '_' + eps_num + ".h5"
     Q.save_weights(name)
 #    simulate_sp(eps_num)
     
@@ -86,7 +103,7 @@ if __name__=='__main__':
     RANDOM_SEED = int((time.time()%10)*1000)
     print("Seed = %d" % RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
-
+    FOLDER , MODEL_NUM = create_folder_backup()
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
@@ -103,12 +120,13 @@ if __name__=='__main__':
     steps = 0
     epsilon = EPSILON
     t_start = t = time.time()
+    threshold = THRESHOLD_V
 
     # to clear old saved weights
-    directory = glob.glob(FOLDER + '*')
-    for file in sorted(directory):
-        if file.endswith(".h5"): 
-            os.remove(file)
+#    directory = glob.glob(FOLDER + '*')
+#    for file in sorted(directory):
+#        if file.endswith(".h5"): 
+#            os.remove(file)
 
     # creating a matrix for controls based on JOINT_COUNT
     u_list1 = np.array(range(0, NU))
@@ -127,10 +145,11 @@ if __name__=='__main__':
     else:
         try:
             count = 0
-            for episode in range(NEPISODES):
+            for episode in range(1,NEPISODES+1):
                 ctg = 0.0
                 x = env.reset()
                 gamma_i = 1
+                dec_threshold = False
                 for step in range(MAX_EPISODE_LENGTH):
                     
                     if uniform(0,1) < epsilon:
@@ -148,6 +167,8 @@ if __name__=='__main__':
                     if(reached):
     #                    env.render()
                         print(x , cost)
+                        decrease_threshold = True
+                        
                     xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
                     xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
                     replay_buffer.append([xu, cost, xu_next,reached])
@@ -185,6 +206,9 @@ if __name__=='__main__':
                     gamma_i *= GAMMA
                     steps += 1  
                 avg_ctg = np.average(h_ctg[-nprint:])
+                
+                if dec_threshold:
+                    threshold*= 0.95
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
 #                    simulate()
                     print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg ," saving weights")
@@ -212,9 +236,10 @@ if __name__=='__main__':
                     tot_t = t - t_start
                     print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , elapsed: %.1f s , tot. time: %.1f m' % (
                           episode, avg_ctg, len(replay_buffer), 100*epsilon, dt, tot_t/60.0))
+
         except KeyboardInterrupt:
             print('key pressed ...stopping and saving last weights of Q')
-            name = FOLDER + "Q_weights_final.h5"
+            name = FOLDER + 'MODEL_'+ MODEL_NUM + '_' + 'final.h5'
             Q.save_weights(name)
             
                 
