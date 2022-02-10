@@ -15,9 +15,12 @@ import numpy as np
 from enviroment.hpendulum_2 import HPendulum
 import time
 import matplotlib.pyplot as plt
+import pandas as pd 
+import re
+
 
 #FOLDER = 'Q_weights_backup/'
-FOLDER = 'Model backup/fourth_run/'
+FOLDER = 'model_backup/fourth_run/'
 #FOLDER = 'Q_weights_backup/tr/'
 
 
@@ -32,9 +35,10 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 SIMULATION_ITR         = 100
-INNER_ITR              = 200
-THRESHOLD_C            = 1e-2
-THRESHOLD_V            = 1e-1
+INNER_ITR              = 300
+THRESHOLD_C            = 9e-1
+THRESHOLD_V            = 9e-1
+STAY_UP                = 50
 RENDER                 = False
 
 def get_critic(nx):
@@ -66,32 +70,54 @@ def simulate_folder(sim_iter,inner_iter,simulate=RENDER):
     best_percent = -np.inf
     h_ctg = []
     model_sucess = []
-    best_model = ''    
+    model_num_list = []
+    best_model = ""    
     directory = glob.glob(FOLDER+'*')
+    t_start  = time.time()
+    total_output = []
+    inner_output = ""
     for file in sorted(directory):
         if file.endswith(".h5"):
-            print('loading Model' , file,end='. ')
+            model_number = re.findall(r'\d+',file)[-2]
+            model_num_list.append(int(model_number))
+            print('loading Model #' , model_number,end='. ')
             percent_suc, ctg = simulate_to_death(file,sim_iter,inner_iter,simulate)
             h_ctg.append(ctg)
             model_sucess.append(percent_suc)
-            print('acc:', percent_suc, 'ctg:',round(ctg,1))
+            inner_output = 'acc: '+ str(percent_suc) + 'ctg: ' + str(round(ctg,1))
+            total_output.append('loading Model: #' + model_number + ' ' + inner_output+ '\n')
+            print(inner_output)         
             if percent_suc>= best_percent:
                 best_ctg = ctg
                 best_percent = percent_suc
-                best_model = file
-    print("Best performance:", best_model, "ctg:",round(best_ctg,3),"acc:",best_percent) if any(model_sucess) else print("None of the models reached target")
+                best_model = model_number
+    output = "Best performance: # "+ best_model + " ctg: " + str(round(best_ctg,3)) + " acc: " + str(best_percent) if any(model_sucess) else "None of the models reached target"
+    elapsed = "\ntotal time taken: " + str(round((time.time() - t_start)/60.0,1)) + " minutes"
+    total_output.append(output)
+    total_output.append(elapsed)
+    print(output  + elapsed)
     if(PLOT):
-        plt.plot( model_sucess)
-        plt.xlabel("run number")
-        plt.ylabel("% accuracy")
-        plt.title ("model success")
-        plt.show()     
+        plt.plot(model_num_list,model_sucess)
+        plt.xlabel("Episode Number")
+        plt.ylabel("% Accuracy")
+        plt.title ("Model Success")
+        plt.savefig(FOLDER + "model_success.png")
+        plt.show()
         
-        plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-        plt.xlabel("run number")
-        plt.title ("Average cost-to-go")
-        plt.show()   
-
+        plt.plot(model_num_list, np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
+        plt.xlabel("Episode Number")
+        plt.title ("Average Cost to Go")
+        plt.savefig(FOLDER + "ctg.png")
+        plt.show()
+        
+    f= open(FOLDER + "total_ouput.txt","w+")
+    for out in total_output:
+        f.write(out)
+    f.close()    
+    data_frame = pd.DataFrame(model_num_list,columns=['model_number'])
+    data_frame['model_success'] = pd.Series(model_sucess, index=data_frame.index)
+    data_frame['ctg'] = pd.Series(h_ctg, index=data_frame.index)
+    data_frame.to_csv(FOLDER+ 'results.csv')
 
 def simulate_sp(file_name,itr,rend=True):
     rand=True
@@ -107,10 +133,10 @@ def simulate_sp(file_name,itr,rend=True):
         u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
         u = u_list[u_ind]
         x, cost = env.step(u)
-#        print(cost , x[nv:])
+#                print(cost , x[nv:])
         if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
             reached = True
-#            print("sucessfully reached")
+#                    print("sucessfully reached")
         elif cost > THRESHOLD_C or (abs(x[nv:])> THRESHOLD_V).all() :
             reached = False
         ctg += gamma_i*cost

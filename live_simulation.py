@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'Q_weights_backup/tr/'
+#FOLDER = 'model_backup/'
 FOLDER = 'model_backup/fourth_run/'
 
 
@@ -31,9 +32,10 @@ nprint                 = 10
 PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
-ITR                    = 200
-THRESHOLD_C            = 1e-2
-THRESHOLD_V            = 1e-1
+ITR                    = 300
+THRESHOLD_C            = 9e-1
+THRESHOLD_V            = 9e-1
+STAY_UP                = 50
 RENDER                 = True
 
 def get_critic(nx,name):
@@ -60,7 +62,7 @@ def reset_env():
 def reset_env_rand():
     return env.reset() , 0.0 , 1, False
     
-def simulate_folder(itr=100):
+def simulate_folder(itr=ITR):
     h_ctg = []
     model_sucess = []
     best_model = ''
@@ -70,20 +72,25 @@ def simulate_folder(itr=100):
         if file.endswith(".h5"):
             print('loading Model' , file,end='. ')
             Q.load_weights(file)
-            x , ctg , gamma_i , reached = reset_env() 
-            for i in range(ITR):      
+            x , ctg , gamma_i , reached = reset_env()
+            at_target = 0
+            for i in range(itr):      
                 x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
                 xu_check = np.c_[x_rep,u_list]
                 pred = Q.__call__(xu_check)
                 u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
                 u = u_list[u_ind]
                 x, cost = env.step(u)
-#                print(cost , x[nv:])
-                if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
-                    reached = True
-#                    print("sucessfully reached")
-                elif cost > THRESHOLD_C or (abs(x[nv:])> THRESHOLD_V).all() :
-                    reached = False
+        #        print(cost , x[nv:])
+                if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all():
+                    at_target+=1
+                    print(at_target)
+        #            print("sucessfully reached")
+                else:
+                    at_target = 0
+                
+                if(at_target >= STAY_UP):
+                    reached = True            
                 ctg += gamma_i*cost
                 gamma_i *= GAMMA
                 if(RENDER): env.render()   
@@ -101,12 +108,13 @@ def simulate_folder(itr=100):
         plt.show()                 
 
 
-def simulate_sp(file_num,itr=200,rand=False,rend=True):
+def simulate_sp(file_num,itr=ITR,rand=False,rend=True):
     directory = FOLDER + 'Q_weights_'
     file_name = directory + str(file_num) + '.h5'
     print('loading file' , file_name)
     Q.load_weights(file_name)
     x , ctg , gamma_i, reached  = reset_env() if not rand else reset_env_rand()
+    at_target = 0
     for i in range(itr):      
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
@@ -115,11 +123,15 @@ def simulate_sp(file_num,itr=200,rand=False,rend=True):
         u = u_list[u_ind]
         x, cost = env.step(u)
 #        print(cost , x[nv:])
-        if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
-            reached = True
+        if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all():
+            at_target+=1
+            print(at_target)
 #            print("sucessfully reached")
-        elif cost > THRESHOLD_C or (abs(x[nv:])> THRESHOLD_V).all() :
-            reached = False
+        else:
+            at_target = 0
+        
+        if(at_target >= STAY_UP):
+            reached = True            
         ctg += gamma_i*cost
         gamma_i *= GAMMA
         if (rend):
@@ -127,7 +139,7 @@ def simulate_sp(file_num,itr=200,rand=False,rend=True):
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
     return reached
 
-def simulate_to_death(file_num,iter=20,rend=False,inner_iter=200):
+def simulate_to_death(file_num,iter=20,rend=False,inner_iter=ITR):
     sucess = 0
     for i in range(iter):
         reached = simulate_sp(file_num,inner_iter,True,rend)
