@@ -17,7 +17,8 @@ import time
 import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
-FOLDER = 'Q_weights_backup/tr/'
+#FOLDER = 'Q_weights_backup/tr/'
+FOLDER = 'model_backup/fourth_run/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -35,7 +36,7 @@ THRESHOLD_C            = 1e-2
 THRESHOLD_V            = 1e-1
 RENDER                 = True
 
-def get_critic(nx):
+def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
     state_out1 = layers.Dense(16, activation="relu")(inputs) 
@@ -44,7 +45,7 @@ def get_critic(nx):
     state_out4 = layers.Dense(64, activation="relu")(state_out3)
     outputs = layers.Dense(JOINT_COUNT)(state_out4)
 
-    model = tf.keras.Model(inputs, outputs)
+    model = tf.keras.Model(inputs, outputs,name = name)
 
     return model
 def reset_env():
@@ -146,9 +147,9 @@ if __name__=='__main__':
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
-    Q = get_critic(nx)
+    Q = get_critic(nx,'Q')
     Q.summary()
-    Q_target = get_critic(nx)
+    Q_target = get_critic(nx,'Q_target')
     Q_target.set_weights(Q.get_weights())
 
     t_start = t = time.time()
@@ -164,8 +165,8 @@ if __name__=='__main__':
             u_list3 = np.repeat(u_list1,NU**(JOINT_COUNT-2-i))
             u_list3 = np.tile(u_list3,NU**(i+1))        
         u_list = np.c_[u_list,u_list3]
-    
-    simulate_folder(ITR)
+    print('ready...')
+#    simulate_folder(ITR)
         
 
     

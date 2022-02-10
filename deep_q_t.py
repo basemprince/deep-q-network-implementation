@@ -74,7 +74,7 @@ def tf2np(y):
     return tf.squeeze(y).numpy()
 
 
-def get_critic(nx):
+def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
     state_out1 = layers.Dense(16, activation="relu")(inputs) 
@@ -83,7 +83,7 @@ def get_critic(nx):
     state_out4 = layers.Dense(64, activation="relu")(state_out3)
     outputs = layers.Dense(JOINT_COUNT)(state_out4)
 
-    model = tf.keras.Model(inputs, outputs)
+    model = tf.keras.Model(inputs, outputs,name=name)
 
     return model
 
@@ -107,9 +107,9 @@ if __name__=='__main__':
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
-    Q = get_critic(nx)
+    Q = get_critic(nx,"Q")
     Q.summary()
-    Q_target = get_critic(nx)
+    Q_target = get_critic(nx,"Q_target")
     Q_target.set_weights(Q.get_weights())
 
     optimizer = tf.keras.optimizers.Adam(QVALUE_LEARNING_RATE)
@@ -234,8 +234,8 @@ if __name__=='__main__':
                     dt = time.time() - t
                     t = time.time()
                     tot_t = t - t_start
-                    print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f , elapsed: %.1f s , tot. time: %.1f m' % (
-                          episode, avg_ctg, len(replay_buffer), 100*epsilon, dt, tot_t/60.0))
+                    print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f, threshold: %.5f, elapsed: %.1f s , tot. time: %.1f m' % (
+                          episode, avg_ctg, len(replay_buffer), 100*epsilon,threshold, dt, tot_t/60.0))
 
         except KeyboardInterrupt:
             print('key pressed ...stopping and saving last weights of Q')

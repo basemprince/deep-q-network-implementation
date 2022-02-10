@@ -1,0 +1,42 @@
+loading Model Q_weights_backup/Q_weights_00000.h5. Model failed with a cost to go of: 9.757
+loading Model Q_weights_backup/Q_weights_00500.h5. Model failed with a cost to go of: 9.551
+loading Model Q_weights_backup/Q_weights_01000.h5. Model failed with a cost to go of: 9.235
+loading Model Q_weights_backup/Q_weights_01500.h5. Model failed with a cost to go of: 9.339
+loading Model Q_weights_backup/Q_weights_02000.h5. Model failed with a cost to go of: 9.228
+loading Model Q_weights_backup/Q_weights_02500.h5. Model failed with a cost to go of: 9.324
+loading Model Q_weights_backup/Q_weights_03000.h5. Model failed with a cost to go of: 8.99
+loading Model Q_weights_backup/Q_weights_03500.h5. Model failed with a cost to go of: 9.502
+loading Model Q_weights_backup/Q_weights_04000.h5. Model failed with a cost to go of: 8.967
+loading Model Q_weights_backup/Q_weights_04500.h5. Model failed with a cost to go of: 9.165
+loading Model Q_weights_backup/Q_weights_05000.h5. Model failed with a cost to go of: 9.216
+loading Model Q_weights_backup/Q_weights_05500.h5. Model failed with a cost to go of: 9.326
+loading Model Q_weights_backup/Q_weights_06000.h5. Model failed with a cost to go of: 9.552
+loading Model Q_weights_backup/Q_weights_06500.h5. Model failed with a cost to go of: 9.371
+None of the models reached target
+
+Episode: #6720 , cost: 9.4 , buffer size: 20000, epsilon: 0.1 , threshold: 0.010000 , elapsed: 125.7 s , tot. time: 1068.2 m
+16 hours
+
+loading Model Model backup/first_run/Q_weights_00000.h5. acc: 0.0 ctg: 11.9
+loading Model Model backup/first_run/Q_weights_00500.h5. acc: 0.0 ctg: 10.0
+loading Model Model backup/first_run/Q_weights_01000.h5. acc: 0.0 ctg: 9.6
+loading Model Model backup/first_run/Q_weights_01500.h5. acc: 0.0 ctg: 9.5
+loading Model Model backup/first_run/Q_weights_02000.h5. acc: 0.0 ctg: 8.6
+loading Model Model backup/first_run/Q_weights_02500.h5. acc: 4.0 ctg: 8.7
+loading Model Model backup/first_run/Q_weights_03000.h5. acc: 4.0 ctg: 8.4
+loading Model Model backup/first_run/Q_weights_03500.h5. acc: 6.0 ctg: 8.7 ------------------
+loading Model Model backup/first_run/Q_weights_04000.h5. acc: 0.0 ctg: 9.1
+loading Model Model backup/first_run/Q_weights_04500.h5. acc: 4.0 ctg: 9.0
+loading Model Model backup/first_run/Q_weights_05000.h5. acc: 2.0 ctg: 9.4
+loading Model Model backup/first_run/Q_weights_05500.h5. acc: 0.0 ctg: 8.8
+loading Model Model backup/first_run/Q_weights_06000.h5. acc: 0.0 ctg: 9.2
+loading Model Model backup/first_run/Q_weights_06500.h5. acc: 0.0 ctg: 9.9
+
+sampling steps = 4
+batch size = 64
+replay buffer = 20000
+min buffer = 5000
+update target = 100
+n episodes = 10000
+max episode length = 200
+
