@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'Q_weights_backup/tr/'
 #FOLDER = 'model_backup/'
-FOLDER = 'model_backup/fifth run/'
+FOLDER = 'model_backup/6_run/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
