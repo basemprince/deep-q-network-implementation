@@ -28,15 +28,14 @@ np.set_printoptions(threshold=sys.maxsize)
 ### --- Hyper paramaters
 
 GAMMA                  = 0.9           # Discount factor 
-nprint                 = 10
-PLOT                   = True
-JOINT_COUNT            = 2
-NU                     = 11
-ITR                    = 300
-THRESHOLD_C            = 9e-1
-THRESHOLD_V            = 9e-1
-STAY_UP                = 50
-RENDER                 = True
+PLOT                   = True          # plot results 
+JOINT_COUNT            = 2             # number of joints in model
+NU                     = 11            # discretized control count
+INNER_ITR              = 300           # number of iterations for each seperate simulation
+THRESHOLD_C            = 9e-1          # threshold for cost
+THRESHOLD_V            = 9e-1          # threshold for velocity
+STAY_UP                = 50            # how many iterations doing hand stand to account as target achieved
+RENDER                 = False         # simulate the movements
 
 def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
@@ -62,7 +61,7 @@ def reset_env():
 def reset_env_rand():
     return env.reset() , 0.0 , 1, False
     
-def simulate_folder(itr=ITR):
+def simulate_folder(itr=INNER_ITR):
     h_ctg = []
     model_sucess = []
     best_model = ''
@@ -90,7 +89,9 @@ def simulate_folder(itr=ITR):
                     at_target = 0
                 
                 if(at_target >= STAY_UP):
-                    reached = True            
+                    reached = True
+                else:
+                    reached = False
                 ctg += gamma_i*cost
                 gamma_i *= GAMMA
                 if(RENDER): env.render()   
@@ -108,7 +109,7 @@ def simulate_folder(itr=ITR):
         plt.show()                 
 
 
-def simulate_sp(file_num,itr=ITR,rand=False,rend=True):
+def simulate_sp(file_num,itr=INNER_ITR,rand=False,rend=True):
     directory = FOLDER + 'Q_weights_'
     file_name = directory + str(file_num) + '.h5'
     print('loading file' , file_name)
@@ -125,13 +126,15 @@ def simulate_sp(file_num,itr=ITR,rand=False,rend=True):
 #        print(cost , x[nv:])
         if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all():
             at_target+=1
-            print(at_target)
+#            print(at_target)
 #            print("sucessfully reached")
         else:
             at_target = 0
         
         if(at_target >= STAY_UP):
-            reached = True            
+            reached = True  
+        else:
+            reached = False
         ctg += gamma_i*cost
         gamma_i *= GAMMA
         if (rend):
@@ -139,9 +142,9 @@ def simulate_sp(file_num,itr=ITR,rand=False,rend=True):
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
     return reached
 
-def simulate_to_death(file_num,iter=20,rend=False,inner_iter=ITR):
+def simulate_to_death(file_num,itr=20,rend=False,inner_iter=INNER_ITR):
     sucess = 0
-    for i in range(iter):
+    for i in range(itr):
         reached = simulate_sp(file_num,inner_iter,True,rend)
         if reached: sucess+=1
     print("percent sucess:" ,round(sucess/iter *100.0,2), "%" )
@@ -163,8 +166,6 @@ if __name__=='__main__':
     Q.summary()
     Q_target = get_critic(nx,'Q_target')
     Q_target.set_weights(Q.get_weights())
-
-    t_start = t = time.time()
 
     # creating a matrix for controls based on JOINT_COUNT
     u_list1 = np.array(range(0, NU))

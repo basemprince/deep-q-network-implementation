@@ -30,18 +30,17 @@ np.set_printoptions(threshold=sys.maxsize)
 ### --- Hyper paramaters
 
 GAMMA                  = 0.9           # Discount factor 
-nprint                 = 10
-PLOT                   = True
-JOINT_COUNT            = 2
-NU                     = 11
-SIMULATION_ITR         = 100
-INNER_ITR              = 300
-THRESHOLD_C            = 9e-1
-THRESHOLD_V            = 9e-1
-STAY_UP                = 50
-RENDER                 = False
+PLOT                   = True          # plot results 
+JOINT_COUNT            = 2             # number of joints in model
+NU                     = 11            # discretized control count
+SIMULATION_ITR         = 101           # number of total simulations per model #
+INNER_ITR              = 300           # number of iterations for each seperate simulation
+THRESHOLD_C            = 9e-1          # threshold for cost
+THRESHOLD_V            = 9e-1          # threshold for velocity
+STAY_UP                = 50            # how many iterations doing hand stand to account as target achieved
+RENDER                 = False         # simulate the movements
 
-def get_critic(nx):
+def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
     state_out1 = layers.Dense(16, activation="relu")(inputs) 
@@ -50,7 +49,7 @@ def get_critic(nx):
     state_out4 = layers.Dense(64, activation="relu")(state_out3)
     outputs = layers.Dense(JOINT_COUNT)(state_out4)
 
-    model = tf.keras.Model(inputs, outputs)
+    model = tf.keras.Model(inputs, outputs,name = name)
 
     return model
 def reset_env():
@@ -84,14 +83,18 @@ def simulate_folder(sim_iter,inner_iter,simulate=RENDER):
             percent_suc, ctg = simulate_to_death(file,sim_iter,inner_iter,simulate)
             h_ctg.append(ctg)
             model_sucess.append(percent_suc)
-            inner_output = 'acc: '+ str(percent_suc) + 'ctg: ' + str(round(ctg,1))
+            inner_output = 'acc: '+ str(percent_suc) + ' % ctg: ' + str(round(ctg,1))
             total_output.append('loading Model: #' + model_number + ' ' + inner_output+ '\n')
             print(inner_output)         
-            if percent_suc>= best_percent:
+            if percent_suc> best_percent:
                 best_ctg = ctg
                 best_percent = percent_suc
                 best_model = model_number
-    output = "Best performance: # "+ best_model + " ctg: " + str(round(best_ctg,3)) + " acc: " + str(best_percent) if any(model_sucess) else "None of the models reached target"
+            if percent_suc == best_percent and ctg < best_ctg:
+                best_ctg = ctg
+                best_percent = percent_suc
+                best_model = model_number
+    output = "Best performance: # "+ best_model + " ctg: " + str(round(best_ctg,3)) + " acc: " + str(best_percent) + " %" if any(model_sucess) else "None of the models reached target"
     elapsed = "\ntotal time taken: " + str(round((time.time() - t_start)/60.0,1)) + " minutes"
     total_output.append(output)
     total_output.append(elapsed)
@@ -120,10 +123,37 @@ def simulate_folder(sim_iter,inner_iter,simulate=RENDER):
     data_frame.to_csv(FOLDER+ 'results.csv')
 
 def simulate_sp(file_name,itr,rend=True):
+    Q.load_weights(file_name)
+    x , ctg , gamma_i, reached  = reset_env_rand()
+    at_target = 0
+    for i in range(itr):      
+        x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
+        xu_check = np.c_[x_rep,u_list]
+        pred = Q.__call__(xu_check)
+        u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
+        u = u_list[u_ind]
+        x, cost = env.step(u)
+#        print(cost , x[nv:])
+        if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all():
+            at_target+=1
+#            print(at_target)
+#            print("sucessfully reached")
+        else:
+            at_target = 0
+        
+        if(at_target >= STAY_UP):
+            reached = True  
+        else:
+            reached = False
+        ctg += gamma_i*cost
+        gamma_i *= GAMMA
+        if (rend):
+            env.render()
+#    print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
+    return ctg, reached
+
+def simulate_sp_old(file_name,itr,rend=True):
     rand=True
-#    directory = FOLDER + 'Q_weights_'
-#    file_name = directory + str(file_num) + '.h5'
-#    print('loading file' , file_name)
     Q.load_weights(file_name)
     x , ctg , gamma_i, reached  = reset_env() if not rand else reset_env_rand()
     for i in range(itr):      
@@ -145,6 +175,7 @@ def simulate_sp(file_name,itr,rend=True):
             env.render()
 #    print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
     return ctg, reached
+
 
 def simulate_to_death(file_name,sim_iter,inner_iter,simulate=RENDER):
     sucess = 0
@@ -169,12 +200,10 @@ if __name__=='__main__':
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
-    Q = get_critic(nx)
+    Q = get_critic(nx,'Q')
     Q.summary()
-    Q_target = get_critic(nx)
+    Q_target = get_critic(nx,'Q_target')
     Q_target.set_weights(Q.get_weights())
-
-    t_start = t = time.time()
 
     # creating a matrix for controls based on JOINT_COUNT
     u_list1 = np.array(range(0, NU))

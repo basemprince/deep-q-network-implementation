@@ -41,6 +41,7 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
+STAY_UP                = 50
 THRESHOLD_Q            = 1e-1
 THRESHOLD_V            = 1e-1
 THRESHOLD_C            = 1e-2
@@ -150,6 +151,7 @@ if __name__=='__main__':
                 x = env.reset()
                 gamma_i = 1
                 dec_threshold = False
+                at_target = 0
                 for step in range(MAX_EPISODE_LENGTH):
                     
                     if uniform(0,1) < epsilon:
@@ -162,12 +164,13 @@ if __name__=='__main__':
                         u = u_list[u_ind]
                     x_next, cost = env.step(u)
 #                    reached = True if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else False
-                    reached = True if (abs(x[:nv]) <= THRESHOLD_C).all() and (abs(x[nv:])<= THRESHOLD_V).all() else False
-
+#                    reached = True if (abs(x[:nv]) <= THRESHOLD_C).all() and (abs(x[nv:])<= THRESHOLD_V).all() else False
+                    at_target +=1 if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else 0                  
+                    reached = True if at_target >= STAY_UP else False
                     if(reached):
     #                    env.render()
                         print(x , cost)
-                        decrease_threshold = True
+                        dec_threshold = True
                         
                     xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
                     xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
