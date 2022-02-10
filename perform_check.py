@@ -17,7 +17,8 @@ import time
 import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
-FOLDER = 'Q_weights_backup/tr/'
+FOLDER = 'Model backup/fourth_run/'
+#FOLDER = 'Q_weights_backup/tr/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -30,10 +31,11 @@ nprint                 = 10
 PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
-ITR                    = 200
+SIMULATION_ITR         = 100
+INNER_ITR              = 200
 THRESHOLD_C            = 1e-2
 THRESHOLD_V            = 1e-1
-RENDER                 = True
+RENDER                 = False
 
 def get_critic(nx):
     ''' Create the neural network to represent the Q function '''
@@ -59,51 +61,43 @@ def reset_env():
 def reset_env_rand():
     return env.reset() , 0.0 , 1, False
     
-def simulate_folder(itr=100):
+def simulate_folder(sim_iter,inner_iter,simulate=RENDER):
+    best_ctg = np.inf
+    best_percent = -np.inf
     h_ctg = []
     model_sucess = []
-    best_model = ''
-    best_ctg = np.inf
+    best_model = ''    
     directory = glob.glob(FOLDER+'*')
     for file in sorted(directory):
         if file.endswith(".h5"):
             print('loading Model' , file,end='. ')
-            Q.load_weights(file)
-            x , ctg , gamma_i , reached = reset_env() 
-            for i in range(ITR):      
-                x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
-                xu_check = np.c_[x_rep,u_list]
-                pred = Q.__call__(xu_check)
-                u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
-                u = u_list[u_ind]
-                x, cost = env.step(u)
-#                print(cost , x[nv:])
-                if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() and not reached:
-                    reached = True
-#                    print("sucessfully reached")
-                elif cost > THRESHOLD_C or (abs(x[nv:])> THRESHOLD_V).all() :
-                    reached = False
-                ctg += gamma_i*cost
-                gamma_i *= GAMMA
-                if(RENDER): env.render()   
+            percent_suc, ctg = simulate_to_death(file,sim_iter,inner_iter,simulate)
             h_ctg.append(ctg)
-            model_sucess.append(reached)
-            if ctg < best_ctg and reached:
+            model_sucess.append(percent_suc)
+            print('acc:', percent_suc, 'ctg:',round(ctg,1))
+            if percent_suc>= best_percent:
                 best_ctg = ctg
+                best_percent = percent_suc
                 best_model = file
-            print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",round(ctg,3))
-    print("the best model performance is:", best_model, "with a cost to go of:",round(best_ctg,3)) if any(model_sucess) else print("None of the models reached target")
+    print("Best performance:", best_model, "ctg:",round(best_ctg,3),"acc:",best_percent) if any(model_sucess) else print("None of the models reached target")
     if(PLOT):
+        plt.plot( model_sucess)
+        plt.xlabel("run number")
+        plt.ylabel("% accuracy")
+        plt.title ("model success")
+        plt.show()     
+        
         plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-        plt.xlabel("")
+        plt.xlabel("run number")
         plt.title ("Average cost-to-go")
-        plt.show()                 
+        plt.show()   
 
 
-def simulate_sp(file_num,itr=200,rand=False,rend=True):
-    directory = FOLDER + 'Q_weights_'
-    file_name = directory + str(file_num) + '.h5'
-    print('loading file' , file_name)
+def simulate_sp(file_name,itr,rend=True):
+    rand=True
+#    directory = FOLDER + 'Q_weights_'
+#    file_name = directory + str(file_num) + '.h5'
+#    print('loading file' , file_name)
     Q.load_weights(file_name)
     x , ctg , gamma_i, reached  = reset_env() if not rand else reset_env_rand()
     for i in range(itr):      
@@ -123,19 +117,22 @@ def simulate_sp(file_num,itr=200,rand=False,rend=True):
         gamma_i *= GAMMA
         if (rend):
             env.render()
-    print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
-    return reached
+#    print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
+    return ctg, reached
 
-def simulate_to_death(file_num,iter=20,rend=False,inner_iter=200):
+def simulate_to_death(file_name,sim_iter,inner_iter,simulate=RENDER):
     sucess = 0
-    for i in range(iter):
-        reached = simulate_sp(file_num,inner_iter,True,rend)
+    ctg_h = []
+    for i in range(sim_iter):
+        ctg, reached = simulate_sp(file_name,inner_iter,simulate)
+        ctg_h.append(ctg)
         if reached: sucess+=1
-    print("percent sucess:" ,round(sucess/iter *100.0,2), "%" )
-
-def play_final(itr=300):
-    simulate_sp('final',itr)
-
+    percent_suc = round(sucess/sim_iter *100.0,1)
+    avg_ctg = sum(ctg_h)/len(ctg_h)
+#    print("percent sucess:" ,percent_suc, "%" )
+    return percent_suc, avg_ctg
+    
+    
 
 if __name__=='__main__':
     ### --- Random seed
@@ -165,7 +162,4 @@ if __name__=='__main__':
             u_list3 = np.tile(u_list3,NU**(i+1))        
         u_list = np.c_[u_list,u_list3]
     
-    simulate_folder(ITR)
-        
-
-    
+    simulate_folder(SIMULATION_ITR,INNER_ITR)

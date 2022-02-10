@@ -41,8 +41,11 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
+THRESHOLD_Q            = 9e-3
+THRESHOLD_V            = 5e-3
 THRESHOLD_C            = 1e-2
-THRESHOLD_V            = 1e-1
+
+
 FOLDER = 'Q_weights_backup/tr/'
 
 def np2tf(y):
@@ -139,8 +142,9 @@ if __name__=='__main__':
                         u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
                         u = u_list[u_ind]
                     x_next, cost = env.step(u)
-#                    reached = False
-                    reached = True if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else False
+#                    reached = True if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else False
+                    reached = True if (abs(x[:nv]) <= THRESHOLD_C).all() and (abs(x[nv:])<= THRESHOLD_V).all() else False
+
                     if(reached):
     #                    env.render()
                         print(x , cost)
