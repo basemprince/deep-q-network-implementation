@@ -24,11 +24,11 @@ np.set_printoptions(threshold=sys.maxsize)
 ### --- Hyper paramaters
 SAMPLING_STEPS         = 4             # Steps to sample from replay buffer
 BATCH_SIZE             = 64            # Batch size sampled from replay buffer
-REPLAY_BUFFER_SIZE     = 100000         # Size of replay buffer
+REPLAY_BUFFER_SIZE     = 100000        # Size of replay buffer
 MIN_BUFFER_SIZE        = 5000          # Minimum buffer size to start training
 NEPISODES              = 10000         # Number of training episodes
-MAX_EPISODE_LENGTH     = 300           # Max episode length
-UPDATE_Q_TARGET        = 1500           # Steps to update Q target
+MAX_EPISODE_LENGTH     = 500           # Max episode length
+UPDATE_Q_TARGET        = 2500          # Steps to update Q target
 QVALUE_LEARNING_RATE   = 0.001         # Learning rate of DQN
 GAMMA                  = 0.9           # Discount factor 
 EPSILON                = 1             # Initial exploration probability of eps-greedy policy
@@ -221,7 +221,7 @@ if __name__=='__main__':
                 if(len(replay_buffer)>=MIN_BUFFER_SIZE):
                     count_eps +=1
                     epsilon = max(MIN_EPSILON, np.exp(-EPSILON_DECAY*count_eps))
-                    
+   
                 h_ctg.append(ctg)
                 
                 if(PLOT and episode % nprint == 0):
@@ -237,10 +237,11 @@ if __name__=='__main__':
                     t = time.time()
                     tot_t = t - t_start
                     print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f, threshold: %.5f, elapsed: %.1f s , tot. time: %.1f m' % (
-                          episode, avg_ctg, len(replay_buffer), 100*epsilon,THRESHOLD_V, dt, tot_t/60.0))
+                          episode, avg_ctg, len(replay_buffer), 100*epsilon,threshold_c, dt, tot_t/60.0))
             if(PLOT):
                 plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-                plt.title ("Average cost to go")
+                plt.xlabel("Episode Number")
+                plt.title ("Average Cost to Go")
                 plt.savefig(FOLDER + "ctg_training.png")
                 plt.show()   
         except KeyboardInterrupt:
