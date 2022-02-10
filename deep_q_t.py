@@ -42,10 +42,10 @@ NU                     = 11
 TRAIN                  = True
 STAY_UP                = 50
 THRESHOLD_Q            = 1e-1
-THRESHOLD_V            = 9e-1
-THRESHOLD_C            = 9e-1
-MIN_THRESHOLD          = 9e-3
-
+THRESHOLD_V            = 1e-1
+THRESHOLD_C            = 1e-1
+MIN_THRESHOLD          = 1e-3
+THRESHOLD_DECAY        = 0.003
 
 def create_folder_backup():
     MODEL_NUM = str(randint(100000))
@@ -88,8 +88,6 @@ def get_critic(nx,name):
 
     return model
 
-#def update(batch):
-#    ''' Update the weights of the Q network using the specified batch of data '''
 
 def save_model():
     eps_num = str(episode).zfill(5)
@@ -122,7 +120,8 @@ if __name__=='__main__':
     steps = 0
     epsilon = EPSILON
     t_start = t = time.time()
-
+    threshold_c = THRESHOLD_C
+    threshold_v = THRESHOLD_V
     # to clear old saved weights
 #    directory = glob.glob(FOLDER + '*')
 #    for file in sorted(directory):
@@ -166,7 +165,7 @@ if __name__=='__main__':
                     x_next, cost = env.step(u)
 #                    reached = True if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else False
 #                    reached = True if (abs(x[:nv]) <= THRESHOLD_C).all() and (abs(x[nv:])<= THRESHOLD_V).all() else False
-                    at_target +=1 if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all() else 0                  
+                    at_target +=1 if cost <= threshold_c and (abs(x[nv:])<= threshold_v).all() else 0                  
                     reached = True if at_target >= STAY_UP else False
                     if(reached):
     #                    env.render()
@@ -213,7 +212,7 @@ if __name__=='__main__':
                 
                 if dec_threshold:
                     count_thresh +=1
-                    THRESHOLD_V = THRESHOLD_C = max(MIN_THRESHOLD, np.exp(-EPSILON_DECAY*count_thresh))
+                    threshold_c = threshold_v = MIN_THRESHOLD + (THRESHOLD_C-MIN_THRESHOLD)* np.exp(-EPSILON_DECAY*count_thresh)
 
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
                     print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg)
