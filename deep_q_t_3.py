@@ -8,7 +8,7 @@ Created on Sat Feb  5 22:35:39 2022
 import sys
 import os
 import glob
-#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
@@ -23,13 +23,13 @@ from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
 np.set_printoptions(threshold=sys.maxsize)
 ### --- Hyper paramaters
-SAMPLING_STEPS         = 4             # Steps to sample from replay buffer
+SAMPLING_STEPS         = 3             # Steps to sample from replay buffer
 BATCH_SIZE             = 64            # Batch size sampled from replay buffer
 REPLAY_BUFFER_SIZE     = 100000         # Size of replay buffer
-MIN_BUFFER_SIZE        = 1000          # Minimum buffer size to start training
+MIN_BUFFER_SIZE        = 5000          # Minimum buffer size to start training
 NEPISODES              = 10000         # Number of training episodes
-MAX_EPISODE_LENGTH     = 300           # Max episode length
-UPDATE_Q_TARGET        = 1500           # Steps to update Q target
+MAX_EPISODE_LENGTH     = 500           # Max episode length
+UPDATE_Q_TARGET        = 2500           # Steps to update Q target
 QVALUE_LEARNING_RATE   = 0.001         # Learning rate of DQN
 GAMMA                  = 0.9           # Discount factor 
 EPSILON                = 1             # Initial exploration probability of eps-greedy policy
@@ -41,9 +41,10 @@ PLOT                   = True
 JOINT_COUNT            = 2
 NU                     = 11
 TRAIN                  = True
-THRESHOLD              = 1e-2
+THRESHOLD_C            = 1e-2
+THRESHOLD_V            = 1e-1
 FOLDER = 'Q_weights_backup/tr2/'
-FOLDER = 'Q_weights_backup/tr/'
+
 
 def np2tf(y):
     ''' convert from numpy to tensorflow '''

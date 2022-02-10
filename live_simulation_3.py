@@ -17,8 +17,8 @@ import time
 import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
-#FOLDER = 'Q_weights_backup/tr2/'
-FOLDER = 'Model backup/third_run/'
+FOLDER = 'Q_weights_backup/tr2/'
+#FOLDER = 'Model backup/third_run/'
 
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
@@ -33,7 +33,7 @@ NU                     = 11
 ITR                    = 200
 THRESHOLD_C            = 1e-2
 THRESHOLD_V            = 1e-1
-RENDER                 = False
+RENDER                 = True
 
 
 def get_critic(nx):
