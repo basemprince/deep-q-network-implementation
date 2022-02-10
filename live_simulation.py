@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'Q_weights_backup/tr/'
 #FOLDER = 'model_backup/'
-FOLDER = 'model_backup/fourth_run/'
+FOLDER = 'model_backup/fifth run/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -92,6 +92,9 @@ def simulate_folder(itr=INNER_ITR):
                     reached = True
                 else:
                     reached = False
+                if(at_target > 100):
+                    print('passed')
+                    break
                 ctg += gamma_i*cost
                 gamma_i *= GAMMA
                 if(RENDER): env.render()   
@@ -135,6 +138,8 @@ def simulate_sp(file_num,itr=INNER_ITR,rand=False,rend=True):
             reached = True  
         else:
             reached = False
+        if(at_target > 100):
+            break
         ctg += gamma_i*cost
         gamma_i *= GAMMA
         if (rend):
@@ -147,7 +152,7 @@ def simulate_to_death(file_num,itr=20,rend=False,inner_iter=INNER_ITR):
     for i in range(itr):
         reached = simulate_sp(file_num,inner_iter,True,rend)
         if reached: sucess+=1
-    print("percent sucess:" ,round(sucess/iter *100.0,2), "%" )
+    print("percent sucess:" ,round(sucess/itr *100.0,2), "%" )
 
 def play_final(itr=300):
     simulate_sp('final',itr)
