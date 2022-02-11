@@ -1,0 +1,19 @@
+SAMPLING_STEPS=  4
+BATCH_SIZE=  64
+REPLAY_BUFFER_SIZE=  100000
+MIN_BUFFER_SIZE=  5000
+MAX_EPISODE_LENGTH=  300
+UPDATE_Q_TARGET=  1500
+QVALUE_LEARNING_RATE=  0
+
+SAVE_MODEL             = 100
+nprint                 = 10
+PLOT                   = True
+JOINT_COUNT            = 2
+NU                     = 11
+TRAIN                  = True
+STAY_UP                = 50
+THRESHOLD_Q            = 1e-1
+THRESHOLD_V            = 9e-1
+THRESHOLD_C            = 9e-1
+MIN_THRESHOLD          = 9e-3

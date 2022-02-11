@@ -1,0 +1,65 @@
+_________________________________________________________________
+loading Model Model backup/fourth_run/Q_weights_00000.h5. acc: 0.0 ctg: 11.5
+loading Model Model backup/fourth_run/Q_weights_00100.h5. acc: 0.0 ctg: 9.6
+loading Model Model backup/fourth_run/Q_weights_00200.h5. acc: 0.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_00300.h5. acc: 0.0 ctg: 9.9
+loading Model Model backup/fourth_run/Q_weights_00400.h5. acc: 0.0 ctg: 9.6
+loading Model Model backup/fourth_run/Q_weights_00500.h5. acc: 0.0 ctg: 8.9
+loading Model Model backup/fourth_run/Q_weights_00600.h5. acc: 0.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_00700.h5. acc: 0.0 ctg: 8.7
+loading Model Model backup/fourth_run/Q_weights_00800.h5. acc: 1.0 ctg: 8.8
+loading Model Model backup/fourth_run/Q_weights_00900.h5. acc: 1.0 ctg: 9.2
+loading Model Model backup/fourth_run/Q_weights_01000.h5. acc: 0.0 ctg: 9.6
+loading Model Model backup/fourth_run/Q_weights_01100.h5. acc: 3.0 ctg: 8.6
+loading Model Model backup/fourth_run/Q_weights_01200.h5. acc: 1.0 ctg: 9.2
+loading Model Model backup/fourth_run/Q_weights_01300.h5. acc: 5.0 ctg: 9.0
+loading Model Model backup/fourth_run/Q_weights_01400.h5. acc: 0.0 ctg: 9.5
+loading Model Model backup/fourth_run/Q_weights_01500.h5. acc: 1.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_01600.h5. acc: 9.0 ctg: 9.0
+loading Model Model backup/fourth_run/Q_weights_01700.h5. acc: 3.0 ctg: 9.0
+loading Model Model backup/fourth_run/Q_weights_01800.h5. acc: 0.0 ctg: 9.2
+loading Model Model backup/fourth_run/Q_weights_01900.h5. acc: 35.0 ctg: 8.8
+loading Model Model backup/fourth_run/Q_weights_02000.h5. acc: 4.0 ctg: 8.6
+loading Model Model backup/fourth_run/Q_weights_02100.h5. acc: 16.0 ctg: 9.4
+loading Model Model backup/fourth_run/Q_weights_02200.h5. acc: 2.0 ctg: 8.8
+loading Model Model backup/fourth_run/Q_weights_02300.h5. acc: 7.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_02400.h5. acc: 11.0 ctg: 9.0
+loading Model Model backup/fourth_run/Q_weights_02500.h5. acc: 20.0 ctg: 8.9
+loading Model Model backup/fourth_run/Q_weights_02600.h5. acc: 20.0 ctg: 8.3
+loading Model Model backup/fourth_run/Q_weights_02700.h5. acc: 41.0 ctg: 9.1
+loading Model Model backup/fourth_run/Q_weights_02800.h5. acc: 12.0 ctg: 9.2
+loading Model Model backup/fourth_run/Q_weights_02900.h5. acc: 12.0 ctg: 9.2
+loading Model Model backup/fourth_run/Q_weights_03000.h5. acc: 43.0 ctg: 9.0
+loading Model Model backup/fourth_run/Q_weights_03100.h5. acc: 10.0 ctg: 8.7
+loading Model Model backup/fourth_run/Q_weights_03200.h5. acc: 22.0 ctg: 8.8
+loading Model Model backup/fourth_run/Q_weights_03300.h5. acc: 47.0 ctg: 9.1
+loading Model Model backup/fourth_run/Q_weights_03400.h5. acc: 36.0 ctg: 9.4
+loading Model Model backup/fourth_run/Q_weights_03500.h5. acc: 28.0 ctg: 9.0
+loading Model Model backup/fourth_run/Q_weights_03600.h5. acc: 40.0 ctg: 9.4
+loading Model Model backup/fourth_run/Q_weights_03700.h5. acc: 30.0 ctg: 9.7
+loading Model Model backup/fourth_run/Q_weights_03800.h5. acc: 47.0 ctg: 8.8
+loading Model Model backup/fourth_run/Q_weights_03900.h5. acc: 30.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_04000.h5. acc: 54.0 ctg: 8.4
+loading Model Model backup/fourth_run/Q_weights_04100.h5. acc: 48.0 ctg: 9.7
+loading Model Model backup/fourth_run/Q_weights_04200.h5. acc: 31.0 ctg: 9.7
+loading Model Model backup/fourth_run/Q_weights_04300.h5. acc: 14.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_04400.h5. acc: 10.0 ctg: 8.6
+loading Model Model backup/fourth_run/Q_weights_04500.h5. acc: 5.0 ctg: 9.5
+loading Model Model backup/fourth_run/Q_weights_04600.h5. acc: 16.0 ctg: 9.4
+loading Model Model backup/fourth_run/Q_weights_04700.h5. acc: 23.0 ctg: 9.4
+loading Model Model backup/fourth_run/Q_weights_04800.h5. acc: 48.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_04900.h5. acc: 27.0 ctg: 9.6
+loading Model Model backup/fourth_run/Q_weights_05000.h5. acc: 14.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_05100.h5. acc: 43.0 ctg: 9.4
+loading Model Model backup/fourth_run/Q_weights_05200.h5. acc: 5.0 ctg: 9.6
+loading Model Model backup/fourth_run/Q_weights_05300.h5. acc: 27.0 ctg: 9.3
+loading Model Model backup/fourth_run/Q_weights_05400.h5. acc: 54.0 ctg: 9.4
+Best performance: Model backup/fourth_run/Q_weights_05400.h5 ctg: 9.438 acc: 54.0
+
+
+sampling steps = 3
+batch size = 64
+replay buffer = 100000
+min buffer size =5000
+max episdoe length = 400
+update q = 2500

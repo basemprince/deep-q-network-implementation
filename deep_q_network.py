@@ -1,195 +1,181 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Feb  5 22:35:39 2022
+
+@author: parallels
+"""
+import sys
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
-from tensorflow.keras import layers
 import numpy as np
-from numpy.random import randint, uniform
-from random import sample
-from enviroment.hybrid_pendulum import hybrid_pendulum
+from numpy.random import uniform
+from enviroment import Deep_Q as dq, config_file as c
 import time
-from collections import deque # for FIFO
-from tensorflow.python.ops.numpy_ops import np_config
-from tensorflow.keras.utils import to_categorical
 import matplotlib.pyplot as plt
+from random import sample
+from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
- 
-
-# =============================================================================
-# hyper pramters
-# =============================================================================
-TRAIN                           = False
-QVALUE_LEARNING_RATE            = 0.001
-NEPISODES                       = 4000   # Number of training episodes
-MAX_EPISODE_LENGTH              = 200    # Max episode length
-DISCOUNT                        = 0.9    # Discount factor 
-EPSILON                         = 1      # initial exploration probability of eps-greedy policy
-exploration_decreasing_decay    = 0.001  # exploration decay for exponential decreasing
-min_exploration_prob            = 0.001  # minimum of exploration proba
-SAMPLE_FREQ                     = 4
-BUFFER_SIZE                     = 50000   # FIFO BUFFER SIZE for replay buffer
-BUFFER_LOW                      = 6000
-SAMPLE_SIZE                     = 70     # sample size from the buffer
-UPDATE_WEIGHTS_FREQ             = 100     # number of steps before updating the Q-target weights
-    
-# =============================================================================
-# Environment
-# =============================================================================
-NU                              = 11     # number of discretization steps for the joint torque u
-JOINT_COUNT                     = 1      # number of robot joints
+np.set_printoptions(threshold=sys.maxsize)
 
 
-def np2tf(y):
-    ''' convert from numpy to tensorflow '''
-    out = tf.expand_dims(tf.convert_to_tensor(y), 0).T
-    return out
-    
-def tf2np(y):
-    ''' convert from tensorflow to numpy '''
-    return tf.squeeze(y).numpy()
-
-
-def get_critic(nx):
-    ''' Create the neural network to represent the Q function '''
-    inputs = layers.Input(shape=(nx+NU))
-    print(inputs)
-    print(inputs.shape)
-    state_out1 = layers.Dense(16, activation="relu")(inputs) 
-    state_out2 = layers.Dense(32, activation="relu")(state_out1) 
-    state_out3 = layers.Dense(64, activation="relu")(state_out2) 
-    state_out4 = layers.Dense(64, activation="relu")(state_out3)
-    outputs = layers.Dense(JOINT_COUNT)(state_out4) 
-    model = tf.keras.Model(inputs, outputs)
-
-    return model
-
+@tf.function
 def update(mini_batch):
     ''' Update the weights of the Q network using the specified batch of data '''
-    # all inputs are tf tensors
-    xu_batch ,cost_batch ,xu_next_batch , done_batch = zip(*mini_batch)
-    xu_batch = np.asarray(xu_batch).squeeze()
-    xu_next_batch = np.asarray(xu_next_batch).squeeze()
-    n = len(mini_batch)
-    with tf.GradientTape() as tape:         
-        # Operations are recorded if they are executed within this context manager and at least one of their inputs is being "watched".
-        # Trainable variables (created by tf.Variable or tf.compat.v1.get_variable, where trainable=True is default in both cases) are automatically watched. 
-        # Tensors can be manually watched by invoking the watch method on this context manager.
-#        target_values = Q_target(xu_next_batch, training=True)
+    
+    # convert all to tensor objects
+    xu_batch, cost_batch, xu_next_batch, reached_batch = zip(*mini_batch)
+    xu_batch = tf.convert_to_tensor(xu_batch)
+    xu_next_batch = tf.convert_to_tensor(xu_next_batch)
+    cost_batch = tf.convert_to_tensor(cost_batch)
+
+    with tf.GradientTape() as tape:
+        target_values = deep_q.Q_target(xu_next_batch, training=True)
+        target_values_per_input = tf.squeeze(tf.math.reduce_sum(target_values,axis=2))
         # Compute 1-step targets for the critic loss
-        target_output = Q_target(xu_next_batch, training=True).reshape((n,-1,JOINT_COUNT))
-        target_value  = tf.math.reduce_sum(np.min(target_output, axis=1), axis=1)         
-        y = np.zeros(n)
-        for id, done in enumerate(done_batch):
-            if done:
-                y[id] = cost_batch[id]
+        y = tf.TensorArray(tf.float64, size=c.MINI_BATCH_SIZE, clear_after_read=False)
+        for ind, reached_ in enumerate(reached_batch):
+            if reached_:
+                # apply only cost of current step if at target state
+                y = y.write(ind,cost_batch[ind])
             else:
-                y[id] = cost_batch[id] + DISCOUNT*target_value[id]      
-                    
-#        y = cost_batch + DISCOUNT*target_values                            
+                y = y.write(ind,cost_batch[ind] + c.DISCOUNT*target_values_per_input[ind])
+        y= y.stack()             
         # Compute batch of Values associated to the sampled batch of states
-        Q_value = Q(xu_batch, training=True)                         
+        Q_value = deep_q.Q(xu_batch, training=True) 
+        Q_value_per_input = tf.squeeze(tf.math.reduce_sum(Q_value,axis=2))
         # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
-        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value))  
+        Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value_per_input)) 
+
     # Compute the gradients of the critic loss w.r.t. critic's parameters (weights and biases)
-    Q_grad = tape.gradient(Q_loss, Q.trainable_variables)          
+    Q_grad = tape.gradient(Q_loss, deep_q.Q.trainable_variables)
     # Update the critic backpropagating the gradients
-    critic_optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))    
-
-def trigger_training():
-        
-    h_ctg = [] # Learning history (for plot).
-    ctg_best = np.inf
-    current_step = 0
-    replay_buffer = deque(maxlen=BUFFER_SIZE)
-    # to transform u to a one hot encode
-    exploration_prob = EPSILON
-    t = time.time()
-    for episode in range(NEPISODES):
-        x = env.reset()
-        ctg = 0.0
-        gamma_i = 1
-        for step in range(MAX_EPISODE_LENGTH):
-            if uniform(0,1) < exploration_prob:
-                u = randint(env.nu)
-            else:
-                x_repeat  = np.repeat([x], NU, axis=0)
-                xu_check = np.concatenate((x_repeat,u_categorized),axis=1)
-                u_array = Q.predict(xu_check)
-                u = np.argmin(u_array)
-            u_enc = u_categorized[u].reshape(1,-1)
-            x_enc = x.reshape(1,-1)
-            xu = np.concatenate((x_enc,u_enc),axis=1)            
-            x_next, cost = env.step(u)
-            x_next_enc = x_next.reshape(1,-1)
-            xu_next = np.concatenate((x_next_enc,u_enc),axis=1)  
-            done = True if step == MAX_EPISODE_LENGTH - 1 else False
-            replay_buffer.append([xu, cost, xu_next,done])
-            if len(replay_buffer) > BUFFER_LOW and current_step%SAMPLE_FREQ == 0:
-                mini_batch = sample(replay_buffer,SAMPLE_SIZE) 
-                update(mini_batch)
-            x = x_next
-            ctg += gamma_i*cost
-            gamma_i *= DISCOUNT
-            # update the Q-target weights less often
-            if (current_step % UPDATE_WEIGHTS_FREQ==0):
-                Q_target.set_weights(Q.get_weights())
-            current_step+=1
-            
-        exploration_prob = max(min_exploration_prob, np.exp(-exploration_decreasing_decay*episode))
-        h_ctg.append(ctg)
-        plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
-        plt.title ("Average cost-to-go")
-        plt.show()
-        
-        # if the current ctg is better than the best, save it
-        if ctg <= ctg_best:
-            ## Save NN weights to file (in HDF5)
-            Q.save_weights("Q_weights.h5")
-            ctg_best = ctg
-        
-        dt = time.time() - t
-        t = time.time()
-        print('episode #%d , buffer size: %d, cost %.1f , epsilon: %.1f, elapsed time %.1f s' % (episode,len(replay_buffer), ctg, 100*exploration_prob, dt))
-
-    plt.plot( np.cumsum(h_ctg)/range(1,NEPISODES+1) )
-    plt.title ("Average cost-to-go")
-    plt.show()
+    deep_q.optimizer.apply_gradients(zip(Q_grad, deep_q.Q.trainable_variables))  
+    return True
     
-def simulate():
-    ## Load NN weights from file
-    Q.load_weights("Q_weights.h5")
-    x= env.reset()
-    ctg = 0.0
-    gamma_i = 1
-    
-    for i in range(200):      
-        x_repeat  = np.repeat([x], NU, axis=0)
-        xu_check = np.concatenate((x_repeat,u_categorized),axis=1)
-        u_array = Q.predict(xu_check)
-        u = np.argmin(u_array)
-        x, cost = env.step(u)
-        ctg += gamma_i*cost
-        gamma_i *= DISCOUNT
-        env.render() 
-        
+def choose_control():
+    '''decides whether the control will be random or choosen by the epsilon greedy method
+    * takes the current epsilon and the u list combination
+    * returns the chosen control u'''
+    if uniform(0,1) < deep_q.epsilon:
+        u = tf.random.uniform(shape=[c.JOINT_COUNT],minval=0,maxval=c.NU,dtype=tf.dtypes.int32)
+    else:
+        x_rep = tf.repeat(deep_q.x.reshape(1,-1),c.NU**(c.JOINT_COUNT),axis=0)
+        xu_check = tf.concat([x_rep,deep_q.u_list],axis=1).reshape(c.NU**(c.JOINT_COUNT),1,-1)
+        pred = deep_q.Q.__call__(xu_check)
+        u_ind = tf.squeeze(tf.math.argmin(tf.math.reduce_sum(pred,axis=2), axis=0))
+        u = deep_q.u_list[u_ind]
+    return u
+
+def target_check(x, cost):
+    '''checks if the state angle and velocity are below threshold, which means
+    the pendulum is at target. keeps a count of steps on how long the pendulum held the target
+    position after reaching it. if accomplished, it signals for dropping thresholds even further for
+    next episodes
+    * takes state, at_target count, and the thresholds
+    * returns True if state is below threshold and at_target has stayed up for the STAY_UP step count'''
+    deep_q.at_target +=1 if cost <= deep_q.threshold_c and (abs(x[deep_q.nv:])<= deep_q.threshold_v).all() else 0                  
+    deep_q.reached = True if deep_q.at_target >= c.STAY_UP else False
+    if(deep_q.reached):
+        print(x , ',', round(cost,5),',',u)
+        deep_q.dec_threshold = True
+
+def calculate_decay(minimum, initial, decay_rate, count):
+    '''calculates exponitial decay of the value after applying the decay rate to it'''
+    return minimum + (initial-minimum) * np.exp(-decay_rate*count)
+
+
 if __name__=='__main__':
-    ### --- Random seed
+    # Random seed
     RANDOM_SEED = int((time.time()%10)*1000)
     print("Seed = %d" % RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
-    # Create critic and target NNs
-    env = hybrid_pendulum(JOINT_COUNT, NU, dt=0.1)
-    nx = env.nx
-#    print(nx)
-    Q = get_critic(nx)  
-    # a separate nn to calculate the target
-    Q_target = get_critic(nx)
-    Q.summary()
-    # Set initial weights of targets equal to those of actor and critic
-    Q_target.set_weights(Q.get_weights())
-    ## Set optimizer specifying the learning rates
-    critic_optimizer = tf.keras.optimizers.Adam(QVALUE_LEARNING_RATE)
-    u_categorized = to_categorical(list(range(0, NU)))
+     
+    deep_q = dq()                                       # initialize model      
+    t_start = t = time.time()                           # keep count of episode time and total time
     
-    if(TRAIN):
-        trigger_training()
-    simulate()
-    
+    try:
+        for episode in range(1,c.NEPISODES+1):
+            deep_q.reset()                              #reset enviroment and parameters
+            for step in range(c.EPISODE_LENGTH):
 
+                u = choose_control()                    # choose the control based on epsilon
+
+                deep_q.step(u)
+                if(c.CHECK_END_STATE): target_check(deep_q.x, deep_q.cost)     # check and update if pendulum reached target state
+
+                deep_q.save_to_replay(u)                                       # save observation to replay buffer
+
+                if deep_q.total_steps % c.UPDATE_TARGET_FREQ == 0:
+                    deep_q.update_q_target() 
+                    
+                # Sampling from replay buffer and train
+                if len(deep_q.replay_buffer) >= c.MIN_BUFFER_SIZE and deep_q.total_steps % c.SAMPLING_STEPS == 0:
+                    mini_batch = sample(deep_q.replay_buffer, c.MINI_BATCH_SIZE)
+                    update(mini_batch)
+
+                deep_q.update_params()
+            
+            avg_ctg = np.average(deep_q.h_ctg[-c.NPRINT:]) if len(deep_q.h_ctg) > c.NPRINT else deep_q.ctg
+
+            if deep_q.dec_threshold:
+                deep_q.count_thresh +=1
+                deep_q.threshold_c = deep_q.threshold_v = calculate_decay(c.MIN_THRESHOLD, c.THRESHOLD_C,c.THRESHOLD_DECAY,deep_q.count_thresh)
+
+            # only start finding the best ctg after 2% of the episodes has passed
+            if avg_ctg <= deep_q.best_ctg and episode > 0.02*c.NEPISODES:
+                print("better ctg found: ", round(avg_ctg,2), " best ctg was: ", round(deep_q.best_ctg,2))
+                deep_q.best_ctg = avg_ctg
+
+            # Start decay only when the minimum size of the replay buffer has been reached
+            if(len(deep_q.replay_buffer)>=c.MIN_BUFFER_SIZE):
+                deep_q.count_epsilon +=1
+                deep_q.epsilon = calculate_decay(c.MIN_EPSILON, c.EPSILON,c.EPSILON_DECAY,deep_q.count_epsilon)
+   
+            deep_q.h_ctg.append(deep_q.ctg)
+            
+            if(c.PLOT and episode % c.NPRINT == 0):
+                plt.plot( np.cumsum(deep_q.h_ctg)/range(1,len(deep_q.h_ctg)+1)  )
+                plt.title ("Average cost to go")
+                plt.show()       
+                
+            if c.SAVE_MODEL and episode % c.SAVE_FREQ == 0:
+                deep_q.save_model(episode)   
+                
+            if episode % c.NPRINT == 0:
+                dt = time.time() - t
+                t = time.time()
+                tot_t = t - t_start
+                print('Episode: #%d , cost: %.1f , buffer size: %d, epsilon: %.1f, threshold: %.5f, elapsed: %.1f s , tot. time: %.1f m' % (
+                      episode, avg_ctg, len(deep_q.replay_buffer), 100*deep_q.epsilon,deep_q.threshold_c, dt, tot_t/60.0))
+        
+        if(c.PLOT):
+            plt.plot( np.cumsum(deep_q.h_ctg)/range(1,len(deep_q.h_ctg)+1)  )
+            plt.xlabel("Episode Number")
+            plt.title ("Average Cost to Go")
+            if(c.SAVE_MODEL):
+                plt.savefig(deep_q.folder + "ctg_training.png")
+            plt.show()
+            
+    except KeyboardInterrupt:
+        if(c.SAVE_MODEL):
+            print('key pressed ...stopping and saving last weights of Q')
+            name = deep_q.folder + 'MODEL_'+ deep_q.model_num + '_' + str(episode) + '.h5'
+            deep_q.Q.save_weights(name)
+            
+            plt.plot( np.cumsum(deep_q.h_ctg)/range(1,len(deep_q.h_ctg)+1)  )
+            plt.xlabel("Episode Number")
+            plt.title ("Average Cost to Go")
+            if(c.SAVE_MODEL):
+                plt.savefig(deep_q.folder + "ctg_training.png")
+        else:
+            print('key pressed ...stopping')
+            
+                
+        
+        
+        
+    
+    
+    
