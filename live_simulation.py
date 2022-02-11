@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'model_backup/'
-FOLDER = 'Q_weights_backup/model_69563/'
+FOLDER = 'Q_weights_backup/model_39938/'
 
-FILE_ACR = 'MODEL_69563_' 
+FILE_ACR = 'MODEL_39938_' 
 #FILE_ACR = 'Q_weights_' 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -30,7 +30,7 @@ np.set_printoptions(threshold=sys.maxsize)
 
 GAMMA                  = 0.9           # Discount factor 
 PLOT                   = True          # plot results 
-JOINT_COUNT            = 3             # number of joints in model
+JOINT_COUNT            = 2             # number of joints in model
 NU                     = 11            # discretized control count
 INNER_ITR              = 300           # number of iterations for each seperate simulation
 THRESHOLD_C            = 9e-1          # threshold for cost
@@ -164,7 +164,8 @@ if __name__=='__main__':
     RANDOM_SEED = int((time.time()%10)*1000)
     print("Seed = %d" % RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
-
+    
+  
     env = HPendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
@@ -172,7 +173,11 @@ if __name__=='__main__':
     Q.summary()
     Q_target = get_critic(nx,'Q_target')
     Q_target.set_weights(Q.get_weights())
-
+    
+    directory = glob.glob(FOLDER+'*')
+    check = 0
+    print('Loading dircetory:', FOLDER)
+    print('found',len(directory), 'files in directroy')     
     # creating a matrix for controls based on JOINT_COUNT
     u_list1 = np.array(range(0, NU))
     u_list2 = np.repeat(u_list1,NU**(JOINT_COUNT-1))

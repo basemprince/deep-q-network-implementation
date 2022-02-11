@@ -21,7 +21,7 @@ import re
 
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'model_backup/3_run/'
-FOLDER = 'Q_weights_backup/model_42180/'
+FOLDER = 'Q_weights_backup/model_39938/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
