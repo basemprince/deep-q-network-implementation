@@ -38,7 +38,7 @@ DISCOUNT               = 0.9           # (GAMMA) Discount factor
 EPSILON                = 1             # Initial probability of epsilon
 EPSILON_DECAY          = 0.001         # The exponintial decay rate for epsilon
 MIN_EPSILON            = 0.001         # The Minimum for epsilon
-SAVE_MODEL             = 100           # The number of steps before saving a model
+SAVE_FREQ              = 100           # The number of steps before saving a model
 NPRINT                 = 10            # Frequncy of print out
 NU                     = 11            # number of discretized controls
 STAY_UP                = 50            # How many steps the bendulum needs to hold standup position before considered success
@@ -48,6 +48,7 @@ THRESHOLD_C            = 1e-1          # Threshold for cost
 MIN_THRESHOLD          = 1e-3          # Minimum value for threshold
 THRESHOLD_DECAY        = 0.003         # Decay rate for threshold
 PLOT                   = True          # Plot out results
+SAVE_MODEL             = True          # Save the models in files
 # =============================================================================
 # Hyper paramaters
 # =============================================================================
@@ -73,15 +74,11 @@ def create_folder_backup():
     f.close()
     return FOLDER , MODEL_NUM
 
-def np2tf(y):
-    ''' convert from numpy to tensorflow '''
-    out = tf.expand_dims(tf.convert_to_tensor(y), 0).T
-    return out
     
 def get_critic(nx,name):
     ''' Creates the neural network to represent the Q functions 
     * returns a neural network keras model'''
-    inputs = layers.Input(shape=(nx+JOINT_COUNT))
+    inputs = layers.Input(shape=(1,nx+JOINT_COUNT),batch_size=MINI_BATCH_SIZE)
     state_out1 = layers.Dense(16, activation="relu")(inputs) 
     state_out2 = layers.Dense(32, activation="relu")(state_out1) 
     state_out3 = layers.Dense(64, activation="relu")(state_out2) 
@@ -97,37 +94,32 @@ def update(mini_batch):
     ''' Update the weights of the Q network using the specified batch of data '''
     
     xu_batch, cost_batch, xu_next_batch, reached_batch = zip(*mini_batch)
-    
-    # convert to tensor objects
-    xu_batch = tf.convert_to_tensor(np.asarray(xu_batch).squeeze())
-    xu_next_batch = tf.convert_to_tensor(np.asarray(xu_next_batch).squeeze())
-    cost_batch = np2tf(np.asarray(cost_batch))
-    
+    xu_batch = tf.convert_to_tensor(xu_batch)
+    xu_next_batch = tf.convert_to_tensor(xu_next_batch)
+    cost_batch = tf.convert_to_tensor(cost_batch)
+
     with tf.GradientTape() as tape:
-       
         target_values = Q_target(xu_next_batch, training=True)
-        target_values_per_input = tf.math.reduce_sum(target_values,axis=1)
-        
+        target_values_per_input = tf.squeeze(tf.math.reduce_sum(target_values,axis=2))
         # Compute 1-step targets for the critic loss
-        y = np.zeros(MINI_BATCH_SIZE )
+        y = tf.TensorArray(tf.float64, size=MINI_BATCH_SIZE, clear_after_read=False)
         for ind, reached_ in enumerate(reached_batch):
             if reached_:
-                # reduce cost if reached target
-                y[ind] = cost_batch[ind]
+                y = y.write(ind,cost_batch[ind])
             else:
-                y[ind] = cost_batch[ind] + DISCOUNT*target_values_per_input[ind]    
-      
+                y = y.write(ind,cost_batch[ind] + DISCOUNT*target_values_per_input[ind])
+        y= y.stack()             
         # Compute batch of Values associated to the sampled batch of states
         Q_value = Q(xu_batch, training=True) 
-        Q_value_per_input = tf.math.reduce_sum(Q_value,axis=1)
-        
+        Q_value_per_input = tf.squeeze(tf.math.reduce_sum(Q_value,axis=2))
         # Critic's loss function. tf.math.reduce_mean() computes the mean of elements across dimensions of a tensor
         Q_loss = tf.math.reduce_mean(tf.math.square(y - Q_value_per_input)) 
+
     # Compute the gradients of the critic loss w.r.t. critic's parameters (weights and biases)
     Q_grad = tape.gradient(Q_loss, Q.trainable_variables)
     # Update the critic backpropagating the gradients
     optimizer.apply_gradients(zip(Q_grad, Q.trainable_variables))  
-    
+    return True
     
 def create_u_matrix():
     '''creates a matrix for the descritized controls based on the JOINT_COUNT
@@ -154,19 +146,19 @@ def choose_control(epsilon,u_list):
     else:
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
+        xu_check= xu_check.reshape(NU**(JOINT_COUNT),1,-1)
         pred = Q.__call__(xu_check)
-        u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
+        u_ind = np.argmin(tf.math.reduce_sum(pred,axis=2), axis=0)[0]
         u = u_list[u_ind]
     return u
 
-def target_check(x, at_target, nv,threshold_v, threshold_c):
+def target_check(x, at_target, nv,threshold_v, threshold_c, dec_threshold):
     '''checks if the state angle and velocity are below threshold, which means
     the pendulum is at target. keeps a count of steps on how long the pendulum held the target
     position after reaching it. if accomplished, it signals for dropping thresholds even further for
     next episodes
     * takes state, at_target count, and the thresholds
     * returns True if state is below threshold and at_target has stayed up for the STAY_UP step count'''
-    
     at_target +=1 if cost <= threshold_c and (abs(x[nv:])<= threshold_v).all() else 0                  
     reached = True if at_target >= STAY_UP else False
     if(reached):
@@ -191,9 +183,12 @@ if __name__=='__main__':
     np.random.seed(RANDOM_SEED)
     
     # Generate a folder with a model number
-    FOLDER , MODEL_NUM = create_folder_backup()
-    print("Start training Model #", MODEL_NUM)
-    
+    if(SAVE_MODEL):
+        FOLDER , MODEL_NUM = create_folder_backup()
+        print("Start training Model #", MODEL_NUM)
+    else:
+        print("Start training the Model")
+        
     # initialize enviroment
     env = Hybrid_Pendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
@@ -201,6 +196,7 @@ if __name__=='__main__':
     
     # initialize keras neural networks
     Q = get_critic(nx,"Q")
+    Q.summary()
     Q_target = get_critic(nx,"Q_target")
     Q_target.set_weights(Q.get_weights())
     optimizer = tf.keras.optimizers.Adam(QVALUE_LEARNING_RATE)
@@ -220,7 +216,6 @@ if __name__=='__main__':
     epsilon = EPSILON
     threshold_c = THRESHOLD_C
     threshold_v = THRESHOLD_V
-
     try:
         for episode in range(1,NEPISODES+1):
             ctg = 0.0
@@ -229,11 +224,10 @@ if __name__=='__main__':
             dec_threshold = False                   # a flag to signal that the thresholds need to be decreased
             at_target = 0                           # a count of the number of steps the pendulum stayed at target
             for step in range(EPISODE_LENGTH):
-                
                 u = choose_control(epsilon,u_list)  # choose the control based on epsilon
                 x_next, cost = env.step(u)
 
-                reached, at_target, dec_threshold = target_check(x, at_target, nv,threshold_v, threshold_c) # check if pendulum reached target
+                reached, at_target, dec_threshold = target_check(x, at_target, nv,threshold_v, threshold_c, dec_threshold) # check if pendulum reached target
 
                 xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
                 xu_next = np.c_[x_next.reshape(1,-1),u.reshape(1,-1)]
@@ -246,14 +240,15 @@ if __name__=='__main__':
                 if len(replay_buffer) >= MIN_BUFFER_SIZE and total_steps % SAMPLING_STEPS == 0:
                     mini_batch = sample(replay_buffer, MINI_BATCH_SIZE)
                     update(mini_batch)
+
                                 
                 x = x_next
                 ctg += gamma_i * cost
                 gamma_i *= DISCOUNT
                 total_steps += 1
-                
-            avg_ctg = np.average(h_ctg[-NPRINT:])
             
+            avg_ctg = np.average(h_ctg[-NPRINT:]) if len(h_ctg) > NPRINT else ctg
+
             if dec_threshold:
                 count_thresh +=1
                 threshold_c = threshold_v = calculate_decay(MIN_THRESHOLD, THRESHOLD_C,THRESHOLD_DECAY,count_thresh)
@@ -275,7 +270,7 @@ if __name__=='__main__':
                 plt.title ("Average cost to go")
                 plt.show()       
                 
-            if episode % SAVE_MODEL == 0:
+            if SAVE_MODEL and episode % SAVE_FREQ == 0:
                 save_model()   
                 
             if episode % NPRINT == 0:
@@ -289,13 +284,17 @@ if __name__=='__main__':
             plt.plot( np.cumsum(h_ctg)/range(1,len(h_ctg)+1)  )
             plt.xlabel("Episode Number")
             plt.title ("Average Cost to Go")
-            plt.savefig(FOLDER + "ctg_training.png")
+            if(SAVE_MODEL):
+                plt.savefig(FOLDER + "ctg_training.png")
             plt.show()
             
     except KeyboardInterrupt:
-        print('key pressed ...stopping and saving last weights of Q')
-        name = FOLDER + 'MODEL_'+ MODEL_NUM + '_' + str(episode) + '.h5'
-        Q.save_weights(name)
+        if(SAVE_MODEL):
+            print('key pressed ...stopping and saving last weights of Q')
+            name = FOLDER + 'MODEL_'+ MODEL_NUM + '_' + str(episode) + '.h5'
+            Q.save_weights(name)
+        else:
+            print('key pressed ...stopping')
             
                 
         

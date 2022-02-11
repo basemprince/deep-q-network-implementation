@@ -208,7 +208,8 @@ if __name__=='__main__':
                     ctg += gamma_i * cost
                     gamma_i *= GAMMA
                     steps += 1  
-                avg_ctg = np.average(h_ctg[-nprint:])
+                
+                avg_ctg = np.average(h_ctg[-nprint:]) if len(h_ctg) > nprint else ctg
                 
                 if dec_threshold:
                     count_thresh +=1

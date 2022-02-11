@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'model_backup/'
-FOLDER = 'Q_weights_backup/model_42180/'
+FOLDER = 'Q_weights_backup/model_69563/'
 
-FILE_ACR = 'MODEL_42180_' 
+FILE_ACR = 'MODEL_69563_' 
 #FILE_ACR = 'Q_weights_' 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -30,7 +30,7 @@ np.set_printoptions(threshold=sys.maxsize)
 
 GAMMA                  = 0.9           # Discount factor 
 PLOT                   = True          # plot results 
-JOINT_COUNT            = 2             # number of joints in model
+JOINT_COUNT            = 3             # number of joints in model
 NU                     = 11            # discretized control count
 INNER_ITR              = 300           # number of iterations for each seperate simulation
 THRESHOLD_C            = 9e-1          # threshold for cost
