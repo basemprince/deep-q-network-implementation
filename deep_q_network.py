@@ -103,9 +103,9 @@ if __name__=='__main__':
                 u = choose_control()                    # choose the control based on epsilon
 
                 deep_q.step(u)
-                target_check(deep_q.x, deep_q.cost)     # check and update if pendulum reached target state
+                if(c.CHECK_END_STATE): target_check(deep_q.x, deep_q.cost)     # check and update if pendulum reached target state
 
-                deep_q.save_to_replay(u)                # save observation to replay buffer
+                deep_q.save_to_replay(u)                                       # save observation to replay buffer
 
                 if deep_q.total_steps % c.UPDATE_TARGET_FREQ == 0:
                     deep_q.update_q_target() 

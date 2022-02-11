@@ -1,4 +1,8 @@
 
+![Pendulum Gif](images/pendulum_gif.gif)
+Link to simulation: https://www.youtube.com/watch?v=Lbb5raPBL6o
+
+
 # Introduction
 
 Deep Q-Learning (DQN) fundamentally is Q-Learning with three
