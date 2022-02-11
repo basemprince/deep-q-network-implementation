@@ -51,7 +51,7 @@ def create_folder_backup():
     MODEL_NUM = str(randint(100000))
     PARAM_LIST = ['SAMPLING_STEPS','BATCH_SIZE','REPLAY_BUFFER_SIZE'
                   ,'MIN_BUFFER_SIZE','MAX_EPISODE_LENGTH','UPDATE_Q_TARGET'
-                  ,'QVALUE_LEARNING_RATE']
+                  ,'QVALUE_LEARNING_RATE','JOINT_COUNT']
     FOLDER = 'Q_weights_backup/model_' + MODEL_NUM + '/'
     while os.path.exists(FOLDER):
         MODEL_NUM = str(randint(100000))
@@ -169,7 +169,7 @@ if __name__=='__main__':
                     reached = True if at_target >= STAY_UP else False
                     if(reached):
     #                    env.render()
-                        print(x , cost)
+                        print(x , ',', round(cost,5),',',u)
                         dec_threshold = True
                         
                     xu = np.c_[x.reshape(1,-1),u.reshape(1,-1)]
@@ -212,7 +212,7 @@ if __name__=='__main__':
                 
                 if dec_threshold:
                     count_thresh +=1
-                    threshold_c = threshold_v = MIN_THRESHOLD + (THRESHOLD_C-MIN_THRESHOLD)* np.exp(-EPSILON_DECAY*count_thresh)
+                    threshold_c = threshold_v = MIN_THRESHOLD + (THRESHOLD_C-MIN_THRESHOLD)* np.exp(-THRESHOLD_DECAY*count_thresh)
 
                 if avg_ctg <= best_ctg and episode > 0.02*NEPISODES:
                     print("cost is: ", avg_ctg, " best_ctg was: ", best_ctg)

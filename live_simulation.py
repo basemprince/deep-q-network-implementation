@@ -17,10 +17,11 @@ import time
 import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
-#FOLDER = 'Q_weights_backup/tr/'
 #FOLDER = 'model_backup/'
-FOLDER = 'model_backup/6_run/'
+FOLDER = 'Q_weights_backup/model_42180/'
 
+FILE_ACR = 'MODEL_42180_' 
+#FILE_ACR = 'Q_weights_' 
 
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
@@ -36,7 +37,7 @@ THRESHOLD_C            = 9e-1          # threshold for cost
 THRESHOLD_V            = 9e-1          # threshold for velocity
 STAY_UP                = 50            # how many iterations doing hand stand to account as target achieved
 RENDER                 = False         # simulate the movements
-SLOW_DOWN              = True          # to slow down render of simulation
+SLOW_DOWN              = False          # to slow down render of simulation
 def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
@@ -113,7 +114,7 @@ def simulate_folder(itr=INNER_ITR):
 
 
 def simulate_sp(file_num,itr=INNER_ITR,rand=False,rend=True):
-    directory = FOLDER + 'Q_weights_'
+    directory = FOLDER + FILE_ACR
     file_name = directory + str(file_num) + '.h5'
     print('loading file' , file_name)
     Q.load_weights(file_name)

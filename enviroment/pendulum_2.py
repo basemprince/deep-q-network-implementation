@@ -132,7 +132,6 @@ class Pendulum:
 
     def step(self, u):
         ''' Simulate one time step '''
-#        u = u if type(u) is np.ndarray else [u]
         assert(len(u)==self.nu)
         _,self.r = self.dynamics(self.x, u)
         return self.obs(self.x), self.r

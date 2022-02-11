@@ -12,7 +12,6 @@ for i in range(1000):
 '''
 
 import numpy as np
-from numpy import random 
 import pinocchio as pin
 from .display import Display
 from numpy.linalg import inv
@@ -94,11 +93,13 @@ class Pendulum:
 
         self.model.addFrame( pin.Frame('tip', jointId, 0, jointPlacement, pin.FrameType.OP_FRAME) )
 
-    def display(self, q):
+    def display(self, q, slow_down=False):
         ''' Display the robot in the viewer '''
         pin.forwardKinematics(self.model, self.data,q)
         for visual in self.visuals:
             visual.place( self.viewer, self.data.oMi[visual.jointParent] )
+            if(slow_down):
+                time.sleep(0.006)
         self.viewer.viewer.gui.refresh()
 
 
@@ -123,16 +124,17 @@ class Pendulum:
             q0 = np.pi*(np.random.rand(self.nq)*2-1)
             v0 = np.random.rand(self.nv)*2-1
             x0 = np.vstack([q0,v0])
+        x0 = x0.flatten()
         assert len(x0)==self.nx
         self.x = x0.copy()
         self.r = 0.0
-        return self.obs(self.x).squeeze()
+        return self.obs(self.x)
 
     def step(self, u):
         ''' Simulate one time step '''
-#        assert(len(u)==self.nu)
+        assert(len(u)==self.nu)
         _,self.r = self.dynamics(self.x, u)
-        return self.obs(self.x).squeeze(), self.r
+        return self.obs(self.x), self.r
 
     def obs(self, x):
         ''' Compute the observation of the state '''
@@ -161,20 +163,18 @@ class Pendulum:
         q = modulePi(x[:self.nq])
         v = x[self.nq:]
         u = np.clip(np.reshape(np.array(u),self.nu),-self.umax,self.umax)
-
         DT = self.DT/self.NDT
         for i in range(self.NDT):
             pin.computeAllTerms(self.model,self.data,q,v)
             M   = self.data.M
             b   = self.data.nle
-            a   = inv(M)*(u-self.Kf*v-b)
+            a   = inv(M).dot(u-self.Kf*v-b)
             a   = a.reshape(self.nv) + np.random.randn(self.nv)*self.noise_stddev
             self.a = a
 
             q    += (v+0.5*DT*a)*DT
             v    += a*DT
-            cost += (sumsq(q) + 1e-1*sumsq(v) + 1e-3*sumsq(u))*DT # cost function
-
+            cost += (sumsq(q) + 1e-1 * sumsq(v) + 1e-3*sumsq(u))*DT # cost function
             if display:
                 self.display(q)
                 time.sleep(1e-4)
@@ -184,7 +184,9 @@ class Pendulum:
         
         return x,cost
      
-    def render(self):
+    def render(self,slow_down=False,pt=False):
         q = self.x[:self.nq]
-        self.display(q)
+        if(pt):
+            print(self.x)
+        self.display(q,slow_down)
         time.sleep(self.DT/10)

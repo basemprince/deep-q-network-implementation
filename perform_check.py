@@ -20,8 +20,8 @@ import re
 
 
 #FOLDER = 'Q_weights_backup/'
-FOLDER = 'model_backup/third_run/'
-#FOLDER = 'Q_weights_backup/tr/'
+#FOLDER = 'model_backup/3_run/'
+FOLDER = 'Q_weights_backup/model_42180/'
 
 
 from tensorflow.python.ops.numpy_ops import np_config
@@ -39,7 +39,7 @@ THRESHOLD_C            = 9e-1          # threshold for cost
 THRESHOLD_V            = 9e-1          # threshold for velocity
 STAY_UP                = 50            # how many iterations doing hand stand to account as target achieved
 RENDER                 = False         # simulate the movements
-SLOW_DOWN              = True          # to slow down render of simulation
+SLOW_DOWN              = False          # to slow down render of simulation
 def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
