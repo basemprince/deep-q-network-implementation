@@ -1,6 +1,5 @@
-from .pendulum import Pendulum
 import numpy as np
-    
+ 
 
 class Hybrid_Pendulum:
     ''' Initializes a Pendulum environment. The state, which icludes Joint angle, 
@@ -39,9 +38,15 @@ class Hybrid_Pendulum:
         self.pendulum.render(slow_down=slow_down)
         
 
-if __name__=="__main__":
+if __name__ == "__main__":
     print("starting test..")
+    from pendulum import Pendulum 
     env = Hybrid_Pendulum()
     nu = env.nu 
     x = env.reset()
     print('x:\n', x)
+
+else:
+    from pendulum import Pendulum
+
+

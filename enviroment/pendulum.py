@@ -13,7 +13,6 @@ for i in range(1000):
 
 import numpy as np
 import pinocchio as pin
-from .display import Display
 from numpy.linalg import inv
 import time
 
@@ -190,3 +189,11 @@ class Pendulum:
             print(self.x)
         self.display(q,slow_down)
         time.sleep(self.DT/10)
+
+if __name__ == "__main__":
+    import sys
+    from os import path
+    sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
+    from display import Display
+else:
+    from display import Display

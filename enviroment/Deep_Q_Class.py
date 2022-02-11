@@ -12,10 +12,9 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
 from numpy.random import randint
-from .hybrid_pendulum import Hybrid_Pendulum
-import enviroment.config_file as c
+import config_file as c
+from hybrid_pendulum import Hybrid_Pendulum
 from collections import deque
-
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
 

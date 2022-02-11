@@ -12,16 +12,16 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
-from enviroment.hpendulum_2 import HPendulum
+from deep_q_network.enviroment.hybrid_pendulum import Hybrid_Pendulum
 import time
 import matplotlib.pyplot as plt
 
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'model_backup/'
-FOLDER = 'Q_weights_backup/model_39938/'
-
-FILE_ACR = 'MODEL_39938_' 
-#FILE_ACR = 'Q_weights_' 
+#FOLDER = 'Q_weights_backup/model_39938/'
+FOLDER = os.path.normpath(os.getcwd() + os.sep + os.pardir)  + '/best_models/'
+#FILE_ACR = 'MODEL_39938_' 
+FILE_ACR = 'Q_weights_' 
 
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
@@ -37,7 +37,7 @@ THRESHOLD_C            = 9e-1          # threshold for cost
 THRESHOLD_V            = 9e-1          # threshold for velocity
 STAY_UP                = 50            # how many iterations doing hand stand to account as target achieved
 RENDER                 = False         # simulate the movements
-SLOW_DOWN              = False          # to slow down render of simulation
+SLOW_DOWN              = True          # to slow down render of simulation
 def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
@@ -148,6 +148,59 @@ def simulate_sp(file_num,itr=INNER_ITR,rand=False,rend=True):
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
     return reached
 
+def simulate_till(file_num,rand=True,rend=True):
+    directory = FOLDER + FILE_ACR
+    file_name = directory + str(file_num) + '.h5'
+    print('loading file' , file_name)
+    Q.load_weights(file_name)
+    x , ctg , gamma_i, reached  = reset_env() if not rand else reset_env_rand()
+    at_target = 0
+    t = time.time()
+    reached = False
+    iterations = 0
+    while not reached:  
+        iterations+=1
+        x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
+        xu_check = np.c_[x_rep,u_list]
+        pred = Q.__call__(xu_check)
+        u_ind = np.argmin(tf.math.reduce_sum(pred,axis=1), axis=0)
+        u = u_list[u_ind]
+        x, cost = env.step(u)
+#        print(cost , x[nv:])
+        if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all():
+            at_target+=1
+#            print(at_target)
+#            print("sucessfully reached")
+        else:
+            at_target = 0
+        
+        if(at_target >= STAY_UP):
+            reached = True  
+        else:
+            reached = False
+        if(at_target > 200):
+            break
+        ctg += gamma_i*cost
+        gamma_i *= GAMMA
+        if (rend):
+            env.render(SLOW_DOWN)
+    time_taken=time.time()-t
+    print('Time:', round(time_taken,2), 'iterations:', iterations)
+#    print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
+    return time_taken , iterations
+
+def simulate_to_death_till(file_num,itr=20,rend=False,inner_iter=INNER_ITR):
+    time_total = 0
+    total_iters = 0
+    for i in range(itr):
+        time_taken,iters = simulate_till(file_num,True,rend)
+        time_total+=time_taken
+        total_iters+=iters
+    average_time = round(time_total / itr,1)
+    average_iters = round(total_iters/itr,1)
+    print("total time for", itr ,"iterations:", round(time_total/60.0,1), "minutes. average:",average_time )
+    print("total steps for", itr ,"iterations:", total_iters, ". average:",average_iters )
+
 def simulate_to_death(file_num,itr=20,rend=False,inner_iter=INNER_ITR):
     sucess = 0
     for i in range(itr):
@@ -166,7 +219,7 @@ if __name__=='__main__':
     np.random.seed(RANDOM_SEED)
     
   
-    env = HPendulum(JOINT_COUNT, NU, dt=0.1)
+    env = Hybrid_Pendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
     Q = get_critic(nx,'Q')

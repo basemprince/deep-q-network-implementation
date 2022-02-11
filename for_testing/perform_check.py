@@ -12,7 +12,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
-from enviroment.hpendulum_2 import HPendulum
+from deep_q_network.enviroment.hybrid_pendulum import Hybrid_Pendulum
 import time
 import matplotlib.pyplot as plt
 import pandas as pd 
@@ -197,7 +197,7 @@ if __name__=='__main__':
     print("Seed = %d" % RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
 
-    env = HPendulum(JOINT_COUNT, NU, dt=0.1)
+    env = Hybrid_Pendulum(JOINT_COUNT, NU, dt=0.1)
     nx = env.nx
     nv = env.nv
     Q = get_critic(nx,'Q')

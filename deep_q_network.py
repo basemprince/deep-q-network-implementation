@@ -11,8 +11,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 import numpy as np
 from numpy.random import uniform
-import enviroment.Deep_Q_Class as dq
-import enviroment.config_file as c
+from enviroment import Deep_Q as dq, config_file as c
 import time
 import matplotlib.pyplot as plt
 from random import sample
@@ -93,7 +92,7 @@ if __name__=='__main__':
     print("Seed = %d" % RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
      
-    deep_q = dq.Deep_Q()                                   # initialize model      
+    deep_q = dq()                                       # initialize model      
     t_start = t = time.time()                           # keep count of episode time and total time
     
     try:
