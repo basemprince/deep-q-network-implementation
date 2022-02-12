@@ -15,7 +15,7 @@ import numpy as np
 import pinocchio as pin
 from numpy.linalg import inv
 import time
-
+from display import Display
 
 class Visual:
     '''
@@ -45,7 +45,7 @@ class Pendulum:
     an object Visual (see above).    
     '''
 
-    def __init__(self, nbJoint=1, noise_stddev=0.0):
+    def __init__(self, nbJoint=2, noise_stddev=0.0):
         '''Create a Pinocchio model of a N-pendulum, with N the argument <nbJoint>.'''
         self.viewer     = Display()
         self.visuals    = []
@@ -194,6 +194,8 @@ if __name__ == "__main__":
     import sys
     from os import path
     sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
-    from display import Display
-else:
-    from display import Display
+    print("starting test..")
+    env = Pendulum()
+    nu = env.nu 
+    x = env.reset()
+    print('x:\n', x)

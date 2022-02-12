@@ -18,6 +18,7 @@ from collections import deque
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
 
+DEBUG = False
 
 class Deep_Q():
     ''' class for the deep Q learning neural network. initializes, and keeps track of all
@@ -80,11 +81,14 @@ class Deep_Q():
         
     def create_folder_backup(self):
         '''To establish a new folder and saves the hyper parameters requested of the model in PARAM_LIST into a text file'''
+        MODEL_NUM = str(randint(100000))
         if os.path.basename(os.getcwd()) == 'enviroment':
-            directory = os.path.normpath(os.getcwd() + os.sep + os.pardir)
+            if(DEBUG):
+                directory = os.path.normpath(os.getcwd() + os.sep + os.pardir)
+            else:
+                return None, MODEL_NUM
         else:
             directory = '.'
-        MODEL_NUM = str(randint(100000))
         PARAM_LIST = ['JOINT_COUNT','EPISODE_LENGTH ','BUFFER_SIZE'
           ,'MIN_BUFFER_SIZE','MINI_BATCH_SIZE','SAMPLING_STEPS'
           ,'UPDATE_TARGET_FREQ','QVALUE_LEARNING_RATE', 'DISCOUNT','NU']
