@@ -9,7 +9,7 @@ Created on Fri Feb 11 14:54:46 2022
 # =============================================================================
 # Hyper paramaters
 # =============================================================================
-JOINT_COUNT            = 3             # Number of joints of the pendulum
+JOINT_COUNT            = 2             # Number of joints of the pendulum
 NEPISODES              = 10000         # Number of training episodes
 EPISODE_LENGTH         = 500           # The number of steps per episode
 BUFFER_SIZE            = 100000        # The size of the replay buffer
@@ -37,3 +37,5 @@ CHECK_END_STATE        = False         # Check if target state is reached
 # =============================================================================
 # Hyper paramaters
 # =============================================================================
+
+         

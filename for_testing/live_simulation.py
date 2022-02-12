@@ -16,12 +16,13 @@ from deep_q_network.enviroment.hybrid_pendulum import Hybrid_Pendulum
 import time
 import matplotlib.pyplot as plt
 
+prev_dir= os.path.normpath(os.getcwd() + os.sep + os.pardir) 
 #FOLDER = 'Q_weights_backup/'
 #FOLDER = 'model_backup/'
-#FOLDER = 'Q_weights_backup/model_39938/'
-FOLDER = os.path.normpath(os.getcwd() + os.sep + os.pardir)  + '/best_models/'
-#FILE_ACR = 'MODEL_39938_' 
-FILE_ACR = 'Q_weights_' 
+FOLDER = prev_dir  + '/Q_weights_backup/model_51552/'
+#FOLDER = prev_dir  + '/best_models/'
+FILE_ACR = 'MODEL_51552_' 
+#FILE_ACR = 'Q_weights_' 
 
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
@@ -30,14 +31,14 @@ np.set_printoptions(threshold=sys.maxsize)
 
 GAMMA                  = 0.9           # Discount factor 
 PLOT                   = True          # plot results 
-JOINT_COUNT            = 2             # number of joints in model
+JOINT_COUNT            = 3             # number of joints in model
 NU                     = 11            # discretized control count
 INNER_ITR              = 300           # number of iterations for each seperate simulation
 THRESHOLD_C            = 9e-1          # threshold for cost
 THRESHOLD_V            = 9e-1          # threshold for velocity
 STAY_UP                = 50            # how many iterations doing hand stand to account as target achieved
-RENDER                 = False         # simulate the movements
-SLOW_DOWN              = True          # to slow down render of simulation
+RENDER                 = True         # simulate the movements
+SLOW_DOWN              = False          # to slow down render of simulation
 def get_critic(nx,name):
     ''' Create the neural network to represent the Q function '''
     inputs = layers.Input(shape=(nx+JOINT_COUNT))
@@ -84,7 +85,7 @@ def simulate_folder(itr=INNER_ITR):
         #        print(cost , x[nv:])
                 if cost <= THRESHOLD_C and (abs(x[nv:])<= THRESHOLD_V).all():
                     at_target+=1
-                    print(at_target)
+#                    print(at_target)
         #            print("sucessfully reached")
                 else:
                     at_target = 0
@@ -148,7 +149,7 @@ def simulate_sp(file_num,itr=INNER_ITR,rand=False,rend=True):
     print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
     return reached
 
-def simulate_till(file_num,rand=True,rend=True):
+def simulate_till(file_num,rand=True,rend=True,cut_of=False,itr=2000):
     directory = FOLDER + FILE_ACR
     file_name = directory + str(file_num) + '.h5'
     print('loading file' , file_name)
@@ -158,7 +159,7 @@ def simulate_till(file_num,rand=True,rend=True):
     t = time.time()
     reached = False
     iterations = 0
-    while not reached:  
+    while not reached or (cut_of and itr == iterations):  
         iterations+=1
         x_rep = np.repeat(x.reshape(1,-1),NU**(JOINT_COUNT),axis=0)
         xu_check = np.c_[x_rep,u_list]
@@ -189,11 +190,11 @@ def simulate_till(file_num,rand=True,rend=True):
 #    print("Model was sucessful:" if reached else "Model failed", "with a cost to go of:",ctg)
     return time_taken , iterations
 
-def simulate_to_death_till(file_num,itr=20,rend=False,inner_iter=INNER_ITR):
+def simulate_to_death_till(file_num,itr=20,rend=False,inner_iter=INNER_ITR,cut_off=False):
     time_total = 0
     total_iters = 0
     for i in range(itr):
-        time_taken,iters = simulate_till(file_num,True,rend)
+        time_taken,iters = simulate_till(file_num,True,rend,cut_off)
         time_total+=time_taken
         total_iters+=iters
     average_time = round(time_total / itr,1)
