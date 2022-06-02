@@ -9,7 +9,7 @@ Link to simulation: https://www.youtube.com/watch?v=Lbb5raPBL6o
 Deep Q-Learning (DQN) fundamentally is Q-Learning with three
 distinct important features:
 
-1.  a convolutional neural network for Q-function approximation
+1.  a deep neural network for Q-function approximation
 
 2.  use a separate neural network with relatively outdated weights to
     estimate the Q-values of the next state
